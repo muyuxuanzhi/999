@@ -42,7 +42,9 @@
     batteryInstalled: false, // 开关已按下，灯亮
     hasNote1: false,
     hasNote2: false,
-    solved: false,
+    hasBadge: false, // 工牌已拾取（重要道具，预留跨章节继承）
+    clockSolved: false, // 时钟已拨对，电子面板已通电，但玩家还没去右墙点击它
+    solved: false, // 玩家已点击电子面板，触发了入职系统
   };
 
   const clickCounts = {
@@ -164,11 +166,13 @@
       el.classList.toggle("hidden-item", !lit);
     });
 
-    // 教学性高亮：持有电池 → 配电盒；已通电但没开灯 → 灯开关
+    // 教学性高亮：持有电池 → 配电盒；已通电但没开灯 → 灯开关；时钟已拨对 → 电子面板
     const fuseEl = document.getElementById("hs-fusebox");
     if (fuseEl) fuseEl.classList.toggle("glow", flags.hasBattery && !flags.powerOn);
     const switchEl = document.getElementById("hs-switch");
     if (switchEl) switchEl.classList.toggle("glow", flags.powerOn && !lit);
+    const panelEl = document.getElementById("hs-panel");
+    if (panelEl) panelEl.classList.toggle("glow", flags.clockSolved && !flags.solved);
 
     // 灯灭时，只调暗"需要照明才看得清"的物品，不调暗配电盒与灯开关本身
     ["desk", "clock", "badge", "door", "countdown"].forEach((id) => {
@@ -176,9 +180,11 @@
       if (el) el.classList.toggle("dim", !lit);
     });
 
-    // 视角箭头上的引导提示：通电后提醒玩家去左边墙壁按开关
+    // 视角箭头上的引导提示：通电后提醒去左边墙壁按开关；时钟拨对后提醒去右边墙壁看面板
     document.querySelectorAll(".nav-arrow").forEach((el) => {
-      el.classList.toggle("nav-guide", flags.powerOn && !lit && el.dataset.to === "left");
+      const guideLeft = flags.powerOn && !lit && el.dataset.to === "left";
+      const guideRight = flags.clockSolved && !flags.solved && el.dataset.to === "right";
+      el.classList.toggle("nav-guide", guideLeft || guideRight);
     });
   }
 
@@ -187,6 +193,7 @@
     battery: { name: "电池", color: "#FFD700" },
     note1: { name: "纸条①", color: "#F0F0F0" },
     note2: { name: "纸条②", color: "#F0F0F0" },
+    badge: { name: "工牌 B7-0313", color: "#C9A227" },
   };
 
   function updateInventory() {
@@ -195,6 +202,7 @@
     if (flags.hasBattery) owned.push("battery");
     if (flags.hasNote1) owned.push("note1");
     if (flags.hasNote2) owned.push("note2");
+    if (flags.hasBadge) owned.push("badge");
 
     if (owned.length === 0) {
       const d = document.createElement("div");
@@ -278,6 +286,24 @@
         );
       }
       playLines(lines, resumeFreeRoam);
+      return;
+    }
+
+    if (id === "badge") {
+      playLines(
+        [
+          cycle(
+            [
+              L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
+              L_think("橘鏡", null, "橘鏡。夜班心理评估员。编号 B7-0313……这真的是我吗？"),
+              L_narr("~工牌边缘有点磨损，像是戴了很久。挂绳上还留着一道折痕。"),
+              L_think("橘鏡", null, "心理评估员……这职位，和这间房，总觉得哪里对不上。"),
+            ],
+            "badge"
+          ),
+        ],
+        resumeFreeRoam
+      );
       return;
     }
   }
@@ -460,32 +486,32 @@
       playLines([L_say("橘鏡", null, "摸到：什么卡片？看不清。")], resumeFreeRoam);
       return;
     }
-    const first = clickCounts.badge === 0;
-    markInv("badge");
-    if (first) {
-      clickCounts.badge++;
+    // 工牌已经拾取并收进物品栏，桌上这里不会再有新反应
+    if (flags.hasBadge) {
       playLines(
-        [
-          L_narr("~橘鏡走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
-          L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
-          L_say("橘鏡", "恍然 思索", "这是我的工牌……夜班心理评估员。编号 B7-0313。"),
-        ],
+        [L_narr("~桌上已经没有别的东西了，工牌刚才已经收起来了。")],
         resumeFreeRoam
       );
       return;
     }
+    markInv("badge");
     playLines(
       [
-        cycle(
-          [
-            L_think("橘鏡", null, "橘鏡。夜班心理评估员。编号 B7-0313……这真的是我吗？"),
-            L_narr("~工牌边缘有点磨损，像是戴了很久。挂绳上还留着一道折痕。"),
-            L_think("橘鏡", null, "心理评估员……这职位，和这间房，总觉得哪里对不上。"),
-          ],
-          "badge"
-        ),
+        L_narr("~橘鏡走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
+        L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
+        L_say("橘鏡", "恍然 思索", "这是我的工牌……夜班心理评估员。编号 B7-0313。"),
+        L_think("橘鏡", null, "重要的东西，还是随身带着吧。"),
       ],
-      resumeFreeRoam
+      () => {
+        flags.hasBadge = true;
+        // 工牌是关键身份道具，预留跨章节继承：先用 localStorage 占位记录，
+        // 后续章节加载时可读取该 key 判断玩家是否已拾取过工牌。
+        try {
+          localStorage.setItem("qbw_badge_b7_0313", "1");
+        } catch (e) {}
+        updateInventory();
+        resumeFreeRoam();
+      }
     );
   }
 
@@ -643,6 +669,23 @@
       playLines([L_say("橘鏡", null, "太黑了，什么都看不清。")], resumeFreeRoam);
       return;
     }
+    // 时钟已经拨对，面板已经通电——玩家主动走过来点开它，才真正触发系统启动
+    if (flags.clockSolved) {
+      markInv("panel");
+      playLines(
+        [
+          L_narr("~橘鏡走到门旁，面板果然亮着，泛着惨白的光。"),
+          L_narr("[门旁的电子面板「嗡」地亮了起来，惨白的光映在橘鏡脸上。]"),
+          L_say("橘鏡", "警惕 皱眉", "启动了。这是什么……电子系统？"),
+        ],
+        () => {
+          flags.solved = true;
+          updateStageVisual();
+          playScene7();
+        }
+      );
+      return;
+    }
     markInv("panel");
     playLines(
       [
@@ -696,7 +739,7 @@
           L_narr("~橘鏡把两张纸条并排举到时钟前。"),
           L_narr("[【05：99】　…　【99：21】]"),
           L_say("橘鏡", "恍然 睁眼", "【05：99】【99：21】……这两个 99，原来是同一个数字！"),
-          L_think("橘鏡", "专注 咬唇", "把重复的那个数字补进去，答案就出来了。动手试试。"),
+          L_think("橘鏡", "专注 咬唇", "那到底是哪个数字……总不能瞎拨。试试看吧。"),
         ],
         () => {
           clockHour = 2;
@@ -813,13 +856,15 @@
       playLines(
         [
           L_narr("[「咔哒。」时钟归位。]"),
-          L_narr("[门旁的电子面板「嗡」地亮了起来，惨白的光映在橘鏡脸上。]"),
-          L_say("橘鏡", "警惕 皱眉", "启动了。这是什么……电子系统？"),
+          L_say("橘鏡", "惊讶", "……对了！"),
+          L_narr("~就在这时，右边墙的方向传来一声轻微的电流声，像是什么东西被接通了。"),
+          L_think("橘鏡", "警惕 皱眉", "那边……是门旁的面板？过去看看。"),
         ],
         () => {
-          flags.solved = true;
+          clockFails = 0;
+          flags.clockSolved = true; // 时钟已解开，电子面板通电，但要玩家自己去右墙点击它才会继续
           updateStageVisual();
-          playScene7();
+          resumeFreeRoam();
         }
       );
       return;
