@@ -510,6 +510,7 @@
           localStorage.setItem("qbw_badge_b7_0313", "1");
         } catch (e) {}
         updateInventory();
+        buildHotspots(); // 拾取后立即重建热点，让地面上的工牌消失
         resumeFreeRoam();
       }
     );
@@ -1001,7 +1002,11 @@
 
   function buildHotspots() {
     hotspotsEl.innerHTML = "";
-    HOTSPOTS.filter((h) => h.view === currentView).forEach((h) => {
+    HOTSPOTS.filter((h) => {
+      // 工牌拾取后从场景中消失（不再显示"地上的工牌"热点）
+      if (h.id === "badge" && flags.hasBadge) return false;
+      return h.view === currentView;
+    }).forEach((h) => {
       const el = document.createElement("div");
       el.id = "hs-" + h.id;
       el.className = "hotspot " + h.cls;
