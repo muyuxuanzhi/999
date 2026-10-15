@@ -188,26 +188,28 @@ html, body {
 
 #dialogue-box {
   flex: 0 0 auto;
-  min-height: 110px;
+  min-height: 25vh;
+  max-height: 32vh;
   background: rgba(10,10,14,0.92);
   border-top: 2px solid #8FA6C8;
-  padding: 12px 20px;
+  padding: 18px 26px;
   cursor: pointer;
   position: relative;
+  overflow-y: auto;
 }
 #dlg-speaker {
-  font-size: 13px; color: #8FA6C8; font-weight: bold; margin-bottom: 4px;
+  font-size: 16px; color: #8FA6C8; font-weight: bold; margin-bottom: 8px;
   letter-spacing: 1px;
 }
 #dlg-text {
-  font-size: 15px; line-height: 1.7; color: #eee; white-space: pre-wrap;
+  font-size: 20px; line-height: 1.75; color: #eee; white-space: pre-wrap;
   min-height: 48px;
 }
-#dlg-text.narration { color: #9aa0ab; font-style: italic; }
-#dlg-text.thought { color: #cdd6e4; font-style: italic; }
+#dlg-text.narration { color: #9aa0ab; font-style: normal; }
+#dlg-text.thought { color: #cdd6e4; font-style: normal; }
 #dlg-next {
-  position: absolute; right: 18px; bottom: 10px;
-  font-size: 12px; color: #666;
+  position: absolute; right: 22px; bottom: 14px;
+  font-size: 14px; color: #666;
   animation: blink 1.2s infinite;
 }
 @keyframes blink { 0%,100%{opacity:0.3;} 50%{opacity:1;} }

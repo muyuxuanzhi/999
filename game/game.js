@@ -695,8 +695,8 @@
         [
           L_narr("~橘鏡把两张纸条并排举到时钟前。"),
           L_narr("[【05：99】　…　【99：21】]"),
-          L_say("橘鏡", "恍然 睁眼", "【05：99】【99：21】……原来是这样，我知道了！"),
-          L_think("橘鏡", "专注 咬唇", "时针拨到 5，分针拨到 21……"),
+          L_say("橘鏡", "恍然 睁眼", "【05：99】【99：21】……这两个 99，原来是同一个数字！"),
+          L_think("橘鏡", "专注 咬唇", "把重复的那个数字补进去，答案就出来了。动手试试。"),
         ],
         () => {
           clockHour = 2;
@@ -788,7 +788,16 @@
   });
 
   document.getElementById("btn-clock-close").addEventListener("click", () => {
+    // 关键：进入解谜前 playLines() 已把热点禁用，离开弹窗时必须恢复，
+    // 否则回到场景后既不能点物品、也不能查看道具，表现为"游戏卡死"。
+    const hintEl = document.getElementById("clock-hint");
+    if (hintEl) hintEl.textContent = "";
+    clockFails = 0;
     showScreen("game");
+    playLines(
+      [L_think("橘鏡", null, "先不拨了。再看看别的地方。")],
+      resumeFreeRoam
+    );
   });
 
   const CLOCK_FAIL_LINES = [
