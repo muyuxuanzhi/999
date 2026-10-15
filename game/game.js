@@ -38,7 +38,8 @@
   // ---------------- 游戏状态 ----------------
   const flags = {
     hasBattery: false,
-    batteryInstalled: false, // = 灯亮
+    powerOn: false, // 电池已装入配电盒，线路通电（但开关还没按，灯仍是灭的）
+    batteryInstalled: false, // 开关已按下，灯亮
     hasNote1: false,
     hasNote2: false,
     solved: false,
@@ -144,7 +145,9 @@
 
   // ---------------- 场景背景 / 氛围 ----------------
   function updateStageVisual() {
-    if (flags.batteryInstalled) {
+    const lit = flags.batteryInstalled;
+
+    if (lit) {
       stageEl.classList.remove("stage-dark");
       stageEl.classList.add("stage-lit");
       stageLabelEl.textContent = "明亮 · " + VIEW_NAMES[currentView];
@@ -153,20 +156,29 @@
       stageEl.classList.add("stage-dark");
       stageLabelEl.textContent = "黑暗 · " + VIEW_NAMES[currentView];
     }
+
     // 画 / 水渍 / 面板 只有开灯后才可见
     ["painting", "puddle", "panel"].forEach((id) => {
       const el = document.getElementById("hs-" + id);
       if (!el) return;
-      el.classList.toggle("hidden-item", !flags.batteryInstalled);
+      el.classList.toggle("hidden-item", !lit);
     });
-    // 只保留"持有电池 → 配电盒"这一处教学性提示；时钟不作高亮
+
+    // 教学性高亮：持有电池 → 配电盒；已通电但没开灯 → 灯开关
     const fuseEl = document.getElementById("hs-fusebox");
-    if (fuseEl) {
-      fuseEl.classList.toggle("glow", flags.hasBattery && !flags.batteryInstalled);
-    }
-    ["switch", "fusebox", "desk", "clock", "badge", "door", "countdown"].forEach((id) => {
+    if (fuseEl) fuseEl.classList.toggle("glow", flags.hasBattery && !flags.powerOn);
+    const switchEl = document.getElementById("hs-switch");
+    if (switchEl) switchEl.classList.toggle("glow", flags.powerOn && !lit);
+
+    // 灯灭时，只调暗"需要照明才看得清"的物品，不调暗配电盒与灯开关本身
+    ["desk", "clock", "badge", "door", "countdown"].forEach((id) => {
       const el = document.getElementById("hs-" + id);
-      if (el) el.classList.toggle("dim", !flags.batteryInstalled);
+      if (el) el.classList.toggle("dim", !lit);
+    });
+
+    // 视角箭头上的引导提示：通电后提醒玩家去左边墙壁按开关
+    document.querySelectorAll(".nav-arrow").forEach((el) => {
+      el.classList.toggle("nav-guide", flags.powerOn && !lit && el.dataset.to === "left");
     });
   }
 
@@ -180,7 +192,7 @@
   function updateInventory() {
     inventoryEl.innerHTML = "";
     const owned = [];
-    if (flags.hasBattery && !flags.batteryInstalled) owned.push("battery");
+    if (flags.hasBattery) owned.push("battery");
     if (flags.hasNote1) owned.push("note1");
     if (flags.hasNote2) owned.push("note2");
 
@@ -262,16 +274,58 @@
   // ============================================================
 
   function onSwitch() {
+    // ① 还没通电：按了没反应
+    if (!flags.powerOn) {
+      if (!flags.hasBattery) {
+        playLines(
+          [
+            L_say("橘鏡", "疑惑", "没电？"),
+            L_narr("~橘鏡又按了按开关，灯还是没有反应。"),
+            L_think("橘鏡", "观察", "开关是好的……是这间房根本没电。"),
+          ],
+          resumeFreeRoam
+        );
+      } else {
+        playLines(
+          [
+            L_narr("~橘鏡按下开关。灯没有亮。"),
+            L_think("橘鏡", "思索", "开关「咔哒」响得挺干脆，却一点光都没有——线路里没电。"),
+            L_think("橘鏡", null, "手里这节电池……应该有个地方能用上。"),
+          ],
+          resumeFreeRoam
+        );
+      }
+      return;
+    }
+
+    // ② 已通电但还没开灯：这一下，灯亮
     if (!flags.batteryInstalled) {
       playLines(
         [
-          L_say("橘鏡", "疑惑", "没电？"),
-          L_narr("~橘鏡又按了按开关，灯还是没有反应。"),
+          L_narr("~橘鏡伸手按下墙上的灯开关。"),
+          L_narr("[「咔哒——」]"),
+          L_narr("[灯管先是一阵细碎的电流杂音，接着「嗡」地亮了起来。惨白的日光灯照亮了整个房间。]"),
+          L_narr("~突如其来的强光让橘鏡不得不闭眼，抬手挡住眼睛。"),
+          L_say("橘鏡", "闭眼 刺眼", "天呐……我的眼睛。"),
+          L_narr("[过了几秒，橘鏡慢慢放下手，睁开眼睛。]"),
+          L_narr("~橘鏡睁眼，环顾四周，愣住了。"),
+          L_narr(
+            "[灯光下，房间的全貌显现出来——它太大了，大得不像一间关押室。天花板高得望不到顶，桌椅孤零零地待在远处，人站在这里，渺小得像一件被遗忘的家具。]"
+          ),
+          L_think("橘鏡", "惊 微张嘴", "这间房……也太大了。天花板……我居然看不到顶。"),
+          L_narr("~橘鏡揉了揉眼睛，决定把整个房间都看一遍。")
         ],
-        resumeFreeRoam
+        () => {
+          flags.batteryInstalled = true;
+          updateStageVisual();
+          updateInventory();
+          resumeFreeRoam();
+        }
       );
       return;
     }
+
+    // ③ 灯已经亮了：循环确认台词
     markInv("switch");
     playLines(
       [
@@ -288,38 +342,47 @@
   }
 
   function onFusebox() {
-    if (!flags.hasBattery) {
-      if (!flags.batteryInstalled) {
-        playLines(
-          [L_think("橘鏡", "观察", "配电盒里有个电池槽，空着的。")],
-          resumeFreeRoam
-        );
-      } else {
-        markInv("fusebox");
-        playLines(
-          [L_think("橘鏡", null, "配电盒的盖子虚掩着，电池已经接上了，别的接口都是空的。")],
-          resumeFreeRoam
-        );
-      }
+    // ② 已通电（灯可能亮着，也可能还灭着）——只做确认
+    if (flags.powerOn) {
+      markInv("fusebox");
+      playLines(
+        [
+          cycle(
+            [
+              L_think("橘鏡", null, "配电盒的盖子虚掩着，电池已经接上了，别的接口都是空的。"),
+              L_think("橘鏡", "思索", "线路是通的。开关在左边那面墙上——现在按下去，灯应该就亮了。"),
+            ],
+            "fusebox"
+          ),
+        ],
+        resumeFreeRoam
+      );
       return;
     }
-    // 持有电池 → 装电池开灯
+
+    // ① 还没装电池
+    if (!flags.hasBattery) {
+      playLines(
+        [
+          L_think("橘鏡", "观察", "配电盒里有个电池槽，空着的。"),
+          L_think("橘鏡", null, "得找一节电池装进去，这间房才有电。"),
+        ],
+        resumeFreeRoam
+      );
+      return;
+    }
+
+    // ③ 持有电池 → 装电池（通电，但灯还没开）
     playLines(
       [
-        L_narr("~橘鏡回到配电盒前，把电池装了进去。"),
-        L_narr("[「嗡——」灯光亮起，惨白的日光灯照亮了整个房间。]"),
-        L_narr("~突如其来的强光让橘鏡不得不闭眼，抬手挡住眼睛。"),
-        L_say("橘鏡", "闭眼 刺眼", "天呐……我的眼睛。"),
-        L_narr("[过了几秒，橘鏡慢慢放下手，睁开眼睛。]"),
-        L_narr("~橘鏡睁眼，环顾四周，愣住了。"),
-        L_narr(
-          "[灯光下，房间的全貌显现出来——它太大了，大得不像一间关押室。天花板高得望不到顶，桌椅孤零零地待在远处，人站在这里，渺小得像一件被遗忘的家具。]"
-        ),
-        L_think("橘鏡", "惊 微张嘴", "这间房……也太大了。天花板……我居然看不到顶。"),
-        L_narr("~橘鏡揉了揉眼睛，决定把整个房间都看一遍。")
+        L_narr("~橘鏡蹲在配电盒前，把电池对准卡槽，推进去。"),
+        L_narr("[「咔」的一声，电池卡进了槽里。]"),
+        L_narr("[配电盒内部传来一声轻响，指示灯从暗红跳成了微亮的绿色——线路通了。]"),
+        L_think("橘鏡", "观察", "通电了。可是灯……还是灭的。"),
+        L_think("橘鏡", "思索", "对了，灯开关。总闸在左边那面墙上，得自己去按。"),
       ],
       () => {
-        flags.batteryInstalled = true;
+        flags.powerOn = true;
         flags.hasBattery = false;
         updateStageVisual();
         updateInventory();
@@ -335,7 +398,7 @@
         [
           L_narr("~橘鏡转身，摸索到房间中央的桌子，拉开抽屉。"),
           L_narr("[抽屉里躺着一节电池，还有一张折起来的白纸。]"),
-          L_think("橘鏡", null, "电池。还有……一张纸？先开灯，等会儿再仔细看。"),
+          L_think("橘鏡", null, "电池。还有……一张纸？先拿上，等会儿再仔细看。"),
         ],
         () => {
           flags.hasBattery = true;
@@ -348,7 +411,13 @@
       return;
     }
     if (!flags.batteryInstalled) {
-      playLines([L_narr("~抽屉里已经没有别的东西了。")], resumeFreeRoam);
+      playLines(
+        [
+          L_narr("~抽屉里已经没有别的东西了。"),
+          L_think("橘鏡", "思索", "电池槽在配电盒那边，开关在左边墙上……这两样都得先处理。"),
+        ],
+        resumeFreeRoam
+      );
       return;
     }
     markInv("desk");
@@ -842,6 +911,7 @@
     arrows.forEach((a) => {
       const el = document.createElement("div");
       el.className = "nav-arrow nav-" + a.dir;
+      el.dataset.to = a.to;
       el.setAttribute("style", ARROW_STYLE[a.dir]);
       el.innerHTML =
         '<span class="nav-glyph">' + ARROW_GLYPH[a.dir] + "</span><span>" + a.label + "</span>";
