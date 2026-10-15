@@ -1,0 +1,210 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: #0a0a0d; color: #eee;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+.screen {
+  display: none;
+  width: 100vw; height: 100vh;
+  position: relative;
+}
+.screen.active { display: block; }
+
+/* ---------- 标题 / 结局 ---------- */
+.title-box {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  max-width: 600px;
+  padding: 30px;
+}
+.title-box h1 {
+  font-size: 36px; letter-spacing: 4px; margin-bottom: 4px;
+  color: #8FA6C8;
+  text-shadow: 0 0 12px rgba(143,166,200,0.6);
+}
+.title-box h2 { font-weight: normal; color: #ccc; margin-top: 0; }
+.title-tip { color: #888; font-size: 13px; }
+.title-box button, .modal-buttons button, .door-btn {
+  margin-top: 20px;
+  padding: 12px 28px;
+  font-size: 16px;
+  background: #8FA6C8;
+  color: #111;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.title-box button:hover, .modal-buttons button:hover, .door-btn:hover {
+  background: #aebfe0;
+}
+#end-text {
+  color: #ccc; line-height: 1.8; white-space: pre-line; margin-top: 16px;
+}
+
+/* ---------- 游戏主画面 ---------- */
+#screen-game { display: none; }
+#screen-game.active { display: flex; flex-direction: column; }
+
+#topbar {
+  height: 36px; flex: 0 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 16px;
+  background: #111318;
+  font-size: 13px; color: #999;
+  border-bottom: 1px solid #222;
+}
+#countdown { color: #e8563a; font-weight: bold; }
+
+#stage {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.8s ease;
+}
+.stage-dark {
+  background: radial-gradient(circle at 80% 10%, #3a1414 0%, #050506 40%, #000 100%);
+}
+.stage-lit {
+  background: linear-gradient(#cfd6e0, #aab4c4);
+}
+
+#stage-label {
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+#hotspots { position: absolute; inset: 0; }
+
+.hotspot {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15) inset;
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(0,0,0,0.75);
+  font-weight: bold;
+  line-height: 1.3;
+  padding: 2px;
+}
+.hotspot:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 2px #fff inset, 0 0 14px rgba(255,255,255,0.5);
+}
+.hotspot.hidden-item { visibility: hidden; }
+.hotspot .hs-label { pointer-events: none; }
+.hotspot.dim { filter: brightness(0.35); color: rgba(255,255,255,0.6); }
+.hotspot.glow {
+  box-shadow: 0 0 0 2px #fff inset, 0 0 18px 4px rgba(255,255,255,0.8);
+  animation: pulse 1.4s infinite;
+}
+@keyframes pulse {
+  0%,100% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+}
+
+/* 代表色色块（占位图） */
+.c-switch   { background: #e8563a; }
+.c-fusebox  { background: #6b7280; }
+.c-desk     { background: #a67b5b; }
+.c-clock    { background: #4a6fd4; }
+.c-badge    { background: #f59e0b; }
+.c-painting { background: #9d7bd8; }
+.c-puddle   { background: #2ec4b6; }
+.c-countdown{ background: #d13b2b; color:#fff; }
+.c-door     { background: #3b2a1a; color:#fff; }
+.c-panel    { background: #4ade80; }
+
+#inventory {
+  flex: 0 0 auto;
+  height: 56px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px;
+  background: #15171c;
+  border-top: 1px solid #222;
+  overflow-x: auto;
+}
+.inv-item {
+  flex: 0 0 auto;
+  width: 60px; height: 40px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: bold; color: #111;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset;
+}
+.inv-empty { color: #555; font-size: 12px; }
+
+#dialogue-box {
+  flex: 0 0 auto;
+  min-height: 110px;
+  background: rgba(10,10,14,0.92);
+  border-top: 2px solid #8FA6C8;
+  padding: 12px 20px;
+  cursor: pointer;
+  position: relative;
+}
+#dlg-speaker {
+  font-size: 13px; color: #8FA6C8; font-weight: bold; margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+#dlg-text {
+  font-size: 15px; line-height: 1.7; color: #eee; white-space: pre-wrap;
+  min-height: 48px;
+}
+#dlg-text.narration { color: #9aa0ab; font-style: italic; }
+#dlg-text.thought { color: #cdd6e4; font-style: italic; }
+#dlg-next {
+  position: absolute; right: 18px; bottom: 10px;
+  font-size: 12px; color: #666;
+  animation: blink 1.2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+
+/* ---------- 弹窗（时钟 / 选门） ---------- */
+.modal-box {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: #181a20;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 28px 36px;
+  text-align: center;
+  min-width: 320px;
+}
+.modal-box h3 { color: #ccc; margin-top: 0; }
+.clock-face {
+  margin: 14px auto; width: 140px; height: 140px;
+  border-radius: 50%; background: #0e0f13;
+  border: 3px solid #4a6fd4;
+  display: flex; align-items: center; justify-content: center;
+}
+#clock-display { font-size: 26px; color: #4a6fd4; letter-spacing: 2px; }
+.clock-controls { display: flex; justify-content: center; gap: 30px; margin: 14px 0; }
+.clock-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.clock-col button {
+  width: 36px; height: 28px; border: none; border-radius: 4px;
+  background: #333; color: #eee; cursor: pointer; font-size: 13px;
+}
+.clock-col button:hover { background: #4a6fd4; }
+.clock-label { font-size: 12px; color: #888; }
+#clock-hour, #clock-min { font-size: 20px; color: #eee; width: 40px; }
+#clock-hint { min-height: 40px; color: #e8a33b; font-size: 13px; margin-top: 6px; white-space: pre-line; }
+.modal-buttons { display: flex; justify-content: center; gap: 16px; }
+.modal-buttons button { background: #4a6fd4; }
+#btn-clock-close { background: #444 !important; color: #eee !important; }
+
+.door-list { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.door-btn { width: 100%; }

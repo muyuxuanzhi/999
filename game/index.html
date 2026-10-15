@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>极限逃脱 999 · 序幕新手关（试玩）</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- 标题画面 -->
+<div id="screen-title" class="screen active">
+  <div class="title-box">
+    <h1>怪谈笔记 999</h1>
+    <h2>序幕 · 入职</h2>
+    <p class="title-tip">（占位版 · 文字 + 色块道具 · 约 20 分钟）</p>
+    <button id="btn-start">开始游戏</button>
+  </div>
+</div>
+
+<!-- 游戏主画面 -->
+<div id="screen-game" class="screen">
+
+  <!-- 顶部状态条 -->
+  <div id="topbar">
+    <div id="room-name">序幕 · 单人关押室</div>
+    <div id="countdown">倒计时 <span id="countdown-time">19:37</span></div>
+  </div>
+
+  <!-- 场景舞台 -->
+  <div id="stage" class="stage-dark">
+    <div id="stage-label"></div>
+    <div id="hotspots"></div>
+  </div>
+
+  <!-- 物品栏 -->
+  <div id="inventory"></div>
+
+  <!-- 对话 / 旁白框 -->
+  <div id="dialogue-box">
+    <div id="dlg-speaker"></div>
+    <div id="dlg-text"></div>
+    <div id="dlg-next">▼ 点击继续</div>
+  </div>
+
+</div>
+
+<!-- 时钟解谜弹窗 -->
+<div id="screen-clock" class="screen">
+  <div class="modal-box">
+    <h3>门旁 · 可拨动的时钟</h3>
+    <div class="clock-face">
+      <div id="clock-display">--:--</div>
+    </div>
+    <div class="clock-controls">
+      <div class="clock-col">
+        <div class="clock-label">时</div>
+        <button data-adj="hour" data-dir="1">▲</button>
+        <div id="clock-hour">02</div>
+        <button data-adj="hour" data-dir="-1">▼</button>
+      </div>
+      <div class="clock-col">
+        <div class="clock-label">分</div>
+        <button data-adj="min" data-dir="1">▲</button>
+        <div id="clock-min">14</div>
+        <button data-adj="min" data-dir="-1">▼</button>
+      </div>
+    </div>
+    <div id="clock-hint"></div>
+    <div class="modal-buttons">
+      <button id="btn-clock-confirm">拨动到此位置</button>
+      <button id="btn-clock-close">离开</button>
+    </div>
+  </div>
+</div>
+
+<!-- 选门弹窗 -->
+<div id="screen-doors" class="screen">
+  <div class="modal-box">
+    <h3>请选择你要进入的【工作间】</h3>
+    <div class="door-list">
+      <button class="door-btn" data-door="tea">茶水间（闸 · 舌）</button>
+      <button class="door-btn" data-door="server">机房（闸 · 耳）</button>
+      <button class="door-btn" data-door="dark">黑暗房（闸 · 眼）</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结局画面 -->
+<div id="screen-end" class="screen">
+  <div class="title-box">
+    <h1>序幕 · 结束</h1>
+    <p id="end-text"></p>
+    <button id="btn-restart">重新开始</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
