@@ -147,6 +147,7 @@
   }
 
   // ---------------- 场景背景 / 氛围 ----------------
+  // 每个视角一个 stage-view-xx 类，明亮版可挂对应背景图（CSS 里控制）
   function updateStageVisual() {
     const lit = flags.batteryInstalled;
 
@@ -159,6 +160,11 @@
       stageEl.classList.add("stage-dark");
       stageLabelEl.textContent = "黑暗 · " + VIEW_NAMES[currentView];
     }
+
+    // 同步视角类，供背景图/氛围 CSS 使用
+    Object.keys(VIEW_NAMES).forEach((v) => {
+      stageEl.classList.toggle("stage-view-" + v, currentView === v);
+    });
 
     // 画 / 水渍 / 面板 只有开灯后才可见
     ["painting", "puddle", "panel"].forEach((id) => {

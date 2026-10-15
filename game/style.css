@@ -74,6 +74,12 @@ html, body {
   background: linear-gradient(#cfd6e0, #aab4c4);
 }
 
+/* 视角专属背景图（明亮版） */
+/* 俯瞰地面：灰白方格地砖（img/bg-floor.png，可用同名文件直接替换） */
+.stage-lit.stage-view-floor {
+  background: #9a9a9a url("img/bg-floor.png") center / cover no-repeat;
+}
+
 #stage-label {
   position: absolute;
   top: 10px; left: 50%;
