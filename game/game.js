@@ -1,6 +1,12 @@
 /* ============================================================
    怪谈笔记 999 · 序幕新手关（占位版试玩）
    纯前端文字冒险 / 点击解谜原型
+
+   设计要点
+   - 反复探索：物品随持有线索变化反应，线索需多次点击才浮现
+   - 线索揭示：纸条拿到手时不显示数字，点击道具才揭示
+   - 解谜门禁：时钟解谜需「开灯 + 时钟已调查 + 纸条1 + 纸条2 + 全部物品已调查」
+   - 隐藏提示：门与面板不直接指向时钟，由玩家自行发现
    ============================================================ */
 
 (function () {
@@ -32,10 +38,9 @@
   // ---------------- 游戏状态 ----------------
   const flags = {
     hasBattery: false,
-    batteryInstalled: false, // = 灯亮 / lit
+    batteryInstalled: false, // = 灯亮
     hasNote1: false,
     hasNote2: false,
-    paintingChecked: false,
     solved: false,
   };
 
@@ -43,6 +48,29 @@
     switch: 0, fusebox: 0, desk: 0, clock: 0, badge: 0,
     painting: 0, puddle: 0, countdown: 0, door: 0, panel: 0,
   };
+
+  // 是否已"仔细看过"该物品（开灯后才计入）
+  const investigated = {
+    switch: false, fusebox: false, desk: false, clock: false, badge: false,
+    painting: false, puddle: false, countdown: false, door: false, panel: false,
+  };
+
+  const REQUIRED = [
+    "switch", "fusebox", "desk", "clock", "badge",
+    "painting", "puddle", "countdown", "door", "panel",
+  ];
+
+  function markInv(id) {
+    if (flags.batteryInstalled) investigated[id] = true;
+  }
+
+  function remainingCount() {
+    return REQUIRED.filter((id) => !investigated[id]).length;
+  }
+
+  function isFullyExplored() {
+    return remainingCount() === 0;
+  }
 
   let clockFails = 0;
   let clockHour = 2, clockMin = 14;
@@ -57,6 +85,7 @@
 
   function setHotspotsEnabled(enabled) {
     hotspotsEl.style.pointerEvents = enabled ? "auto" : "none";
+    inventoryEl.style.pointerEvents = enabled ? "auto" : "none";
   }
 
   function playLines(lines, onDone) {
@@ -89,7 +118,7 @@
       dlgText.classList.add("thought");
       dlgText.textContent = `（${line.text}）`;
     }
-    dlgNext.style.display = lineQueue.length >= 0 ? "block" : "none";
+    dlgNext.style.display = "block";
   }
 
   dlgBox.addEventListener("click", () => {
@@ -100,7 +129,7 @@
     setHotspotsEnabled(true);
     dlgSpeaker.textContent = "";
     dlgText.className = "narration";
-    dlgText.textContent = "（点击场景中的物品，继续调查……）";
+    dlgText.textContent = "（点击场景中的物品，或点击下方道具查看细节……）";
     dlgNext.style.display = "none";
   }
 
@@ -115,17 +144,13 @@
       stageEl.classList.add("stage-dark");
       stageLabelEl.textContent = "黑暗 · 只能摸索";
     }
-    // painting / puddle / panel 只有开灯后才可见
+    // 画 / 水渍 / 面板 只有开灯后才可见
     ["painting", "puddle", "panel"].forEach((id) => {
       const el = document.getElementById("hs-" + id);
       if (!el) return;
       el.classList.toggle("hidden-item", !flags.batteryInstalled);
     });
-    // 时钟在拿到两张纸条后发光提示
-    const clockEl = document.getElementById("hs-clock");
-    if (clockEl) {
-      clockEl.classList.toggle("glow", flags.hasNote1 && flags.hasNote2 && !flags.solved);
-    }
+    // 只保留"持有电池 → 配电盒"这一处教学性提示；时钟不作高亮
     const fuseEl = document.getElementById("hs-fusebox");
     if (fuseEl) {
       fuseEl.classList.toggle("glow", flags.hasBattery && !flags.batteryInstalled);
@@ -137,27 +162,83 @@
   }
 
   // ---------------- 物品栏 ----------------
+  const ITEMS = {
+    battery: { name: "电池", color: "#FFD700" },
+    note1: { name: "纸条①", color: "#F0F0F0" },
+    note2: { name: "纸条②", color: "#F0F0F0" },
+  };
+
   function updateInventory() {
     inventoryEl.innerHTML = "";
-    const items = [];
-    if (flags.hasBattery && !flags.batteryInstalled) items.push({ name: "电池", color: "#FFD700" });
-    if (flags.hasNote1) items.push({ name: "纸条1\n【05:99】", color: "#F0F0F0" });
-    if (flags.hasNote2) items.push({ name: "纸条2\n【99:21】", color: "#F0F0F0" });
-    if (items.length === 0) {
+    const owned = [];
+    if (flags.hasBattery && !flags.batteryInstalled) owned.push("battery");
+    if (flags.hasNote1) owned.push("note1");
+    if (flags.hasNote2) owned.push("note2");
+
+    if (owned.length === 0) {
       const d = document.createElement("div");
       d.className = "inv-empty";
       d.textContent = "（物品栏为空）";
       inventoryEl.appendChild(d);
       return;
     }
-    items.forEach((it) => {
+    owned.forEach((id) => {
+      const it = ITEMS[id];
       const d = document.createElement("div");
       d.className = "inv-item";
       d.style.background = it.color;
-      d.style.whiteSpace = "pre-line";
       d.textContent = it.name;
+      d.title = "点击查看";
+      d.addEventListener("click", () => viewItem(id));
       inventoryEl.appendChild(d);
     });
+  }
+
+  // ---------------- 查看道具 ----------------
+  function viewItem(id) {
+    if (id === "battery") {
+      playLines(
+        [
+          L_narr("[一节普通的干电池。外壳上印着模糊的型号，像是从某个旧机器上拆下来的。]"),
+          L_think("橘鏡", "思考", "电池……这种地方怎么会有电池。先拿着，说不定用得上。"),
+        ],
+        resumeFreeRoam
+      );
+      return;
+    }
+
+    if (id === "note1") {
+      const lines = [
+        L_narr("[一张有点皱的白纸，上面用黑色笔写着【05：99】。]"),
+        L_think("橘鏡", "思考", "不知道能用在哪里的数字，也许是什么线索？再探索看看。"),
+      ];
+      if (flags.hasNote2) {
+        lines.push(
+          L_narr("[另一张纸条上写着【99：21】。两张纸并排放在一起。]"),
+          L_think("橘鏡", "疑惑", "……两张纸上的数字，好像都在同一个位置上缺了一块。")
+        );
+      }
+      playLines(lines, resumeFreeRoam);
+      return;
+    }
+
+    if (id === "note2") {
+      const lines = [
+        L_narr("[一张对折过好几道的白纸，上面用黑色笔写着【99：21】。]"),
+        L_think("橘鏡", "思考", "又是这种写法。和刚才那张，会不会有什么关系？"),
+      ];
+      if (flags.hasNote1) {
+        lines.push(
+          L_think(
+            "橘鏡",
+            "疑惑",
+            "【05：99】……【99：21】……这两个「99」，都是不肯好好说清楚的地方。"
+          )
+        );
+      }
+      playLines(lines, resumeFreeRoam);
+      return;
+    }
   }
 
   // ---------------- 工具：数组循环取值 ----------------
@@ -180,55 +261,62 @@
         ],
         resumeFreeRoam
       );
-    } else {
-      const arr = [
-        L_say("橘鏡", null, "灯已经亮着了，没必要再按。"),
-        L_think("橘鏡", null, "开关按下去只有「咔哒」声，没什么别的反应了。"),
-      ];
-      playLines([cycle(arr, "switch")], resumeFreeRoam);
+      return;
     }
+    markInv("switch");
+    playLines(
+      [
+        cycle(
+          [
+            L_narr("~橘鏡又按了按灯开关。开关「咔哒」响了一声，灯本来就是亮的。"),
+            L_think("橘鏡", null, "开关没坏，是之前没电而已。这里没有别的东西了。"),
+          ],
+          "switch"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
   function onFusebox() {
     if (!flags.hasBattery) {
-      playLines(
-        [L_think("橘鏡", "观察", "配电盒里有个电池槽，空着的。")],
-        resumeFreeRoam
-      );
+      if (!flags.batteryInstalled) {
+        playLines(
+          [L_think("橘鏡", "观察", "配电盒里有个电池槽，空着的。")],
+          resumeFreeRoam
+        );
+      } else {
+        markInv("fusebox");
+        playLines(
+          [L_think("橘鏡", null, "配电盒的盖子虚掩着，电池已经接上了，别的接口都是空的。")],
+          resumeFreeRoam
+        );
+      }
       return;
     }
-    if (!flags.batteryInstalled) {
-      playLines(
-        [
-          L_narr("~橘鏡回到配电盒前，把电池装了进去。"),
-          L_narr("[「嗡——」灯光亮起，惨白的日光灯照亮了整个房间。]"),
-          L_narr("~突如其来的强光让橘鏡不得不闭眼，抬手挡住眼睛。"),
-          L_say("橘鏡", "闭眼 刺眼", "天呐……我的眼睛。"),
-          L_narr("[过了几秒，橘鏡慢慢放下手，睁开眼睛。]"),
-          L_narr("~橘鏡睁眼，环顾四周，愣住了。"),
-          L_narr(
-            "[灯光下，房间的全貌显现出来——它太大了，大得不像一间关押室。天花板高得望不到顶，桌椅孤零零地待在远处，人站在这里，渺小得像一件被遗忘的家具。]"
-          ),
-          L_think("橘鏡", "惊 微张嘴", "这间房……也太大了。天花板……我居然看不到顶。"),
-          L_narr(
-            "【可交互】房间亮堂了，可调查的东西多了起来——墙上的时钟、桌上的工牌、倒挂的画、地板的水渍。"
-          ),
-        ],
-        () => {
-          flags.batteryInstalled = true;
-          flags.hasBattery = false;
-          updateStageVisual();
-          updateInventory();
-          resumeFreeRoam();
-        }
-      );
-    } else {
-      const arr = [
-        L_say("橘鏡", null, "电池已经装好了，灯是亮的。"),
-        L_think("橘鏡", null, "配电盒里的电池接得很稳，没有别的东西了。"),
-      ];
-      playLines([cycle(arr, "fusebox")], resumeFreeRoam);
-    }
+    // 持有电池 → 装电池开灯
+    playLines(
+      [
+        L_narr("~橘鏡回到配电盒前，把电池装了进去。"),
+        L_narr("[「嗡——」灯光亮起，惨白的日光灯照亮了整个房间。]"),
+        L_narr("~突如其来的强光让橘鏡不得不闭眼，抬手挡住眼睛。"),
+        L_say("橘鏡", "闭眼 刺眼", "天呐……我的眼睛。"),
+        L_narr("[过了几秒，橘鏡慢慢放下手，睁开眼睛。]"),
+        L_narr("~橘鏡睁眼，环顾四周，愣住了。"),
+        L_narr(
+          "[灯光下，房间的全貌显现出来——它太大了，大得不像一间关押室。天花板高得望不到顶，桌椅孤零零地待在远处，人站在这里，渺小得像一件被遗忘的家具。]"
+        ),
+        L_think("橘鏡", "惊 微张嘴", "这间房……也太大了。天花板……我居然看不到顶。"),
+        L_narr("~橘鏡揉了揉眼睛，决定把整个房间都看一遍。")
+      ],
+      () => {
+        flags.batteryInstalled = true;
+        flags.hasBattery = false;
+        updateStageVisual();
+        updateInventory();
+        resumeFreeRoam();
+      }
+    );
   }
 
   function onDesk() {
@@ -237,11 +325,8 @@
       playLines(
         [
           L_narr("~橘鏡转身，摸索到房间中央的桌子，拉开抽屉。"),
-          L_narr("[抽屉里躺着一节电池，还有一张折起来的纸条。]"),
-          L_think("橘鏡", null, "电池。还有……纸条？"),
-          L_narr("~橘鏡先拿起电池，又抖开那张纸条。"),
-          L_narr("[纸条 1 上写着：【05：99】。]"),
-          L_think("橘鏡", "疑惑", "【05：99】……这是什么意思？先不管了，把灯打开。"),
+          L_narr("[抽屉里躺着一节电池，还有一张折起来的白纸。]"),
+          L_think("橘鏡", null, "电池。还有……一张纸？先开灯，等会儿再仔细看。"),
         ],
         () => {
           flags.hasBattery = true;
@@ -251,9 +336,25 @@
           resumeFreeRoam();
         }
       );
-    } else {
-      playLines([L_narr("~抽屉是空的，东西都拿走了。")], resumeFreeRoam);
+      return;
     }
+    if (!flags.batteryInstalled) {
+      playLines([L_narr("~抽屉里已经没有别的东西了。")], resumeFreeRoam);
+      return;
+    }
+    markInv("desk");
+    playLines(
+      [
+        cycle(
+          [
+            L_narr("~抽屉是空的，里面只剩下一层灰。"),
+            L_think("橘鏡", null, "桌子只有这一个抽屉。底板上有一圈浅浅的压痕，像是长期放过什么东西。"),
+          ],
+          "desk"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
   function onBadge() {
@@ -261,75 +362,122 @@
       playLines([L_say("橘鏡", null, "摸到：什么卡片？看不清。")], resumeFreeRoam);
       return;
     }
-    if (clickCounts.badge === 0) {
+    const first = clickCounts.badge === 0;
+    markInv("badge");
+    if (first) {
       clickCounts.badge++;
       playLines(
         [
-          L_narr("~橘鏡又走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
+          L_narr("~橘鏡走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
           L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
           L_say("橘鏡", "恍然 思索", "这是我的工牌……夜班心理评估员。编号 B7-0313。"),
         ],
         resumeFreeRoam
       );
-    } else {
-      const arr = [
-        L_think("橘鏡", null, "橘鏡。夜班心理评估员。编号 B7-0313……这真的是我吗？"),
-        L_narr("~工牌边缘有点磨损，像是戴了很久。"),
-        L_think("橘鏡", null, "心理评估员……这职位，和这间房，总觉得哪里对不上。"),
-      ];
-      playLines([cycle(arr, "badge")], resumeFreeRoam);
+      return;
     }
+    playLines(
+      [
+        cycle(
+          [
+            L_think("橘鏡", null, "橘鏡。夜班心理评估员。编号 B7-0313……这真的是我吗？"),
+            L_narr("~工牌边缘有点磨损，像是戴了很久。挂绳上还留着一道折痕。"),
+            L_think("橘鏡", null, "心理评估员……这职位，和这间房，总觉得哪里对不上。"),
+          ],
+          "badge"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
+  // ---- 画框：三段式调查（多次点击才浮现线索） ----
   function onPainting() {
-    if (!flags.hasNote2) {
-      if (!flags.paintingChecked) {
-        flags.paintingChecked = true;
-        playLines(
-          [
-            L_narr("~橘鏡抬头，看见墙上挂着一幅画——画框是倒的。"),
-            L_think("橘鏡", "疑惑", "那幅画……是倒着挂的？"),
-            L_narr("（再点一次，试着把它取下来。）"),
-          ],
-          resumeFreeRoam
-        );
-      } else {
-        playLines(
-          [
-            L_narr("~橘鏡伸手扶住那幅倒挂的画，把它取了下来。"),
-            L_narr("[画框翻过来，背面贴着一张折起来的纸条。]"),
-            L_say("橘鏡", "恍然 睁眼", "果然藏在这后面。"),
-            L_narr("~橘鏡揭下纸条，展开。"),
-            L_narr("[纸条 2 上写着：【99：21】。]"),
-            L_think("橘鏡", "专注 抿嘴", "【99：21】……和刚才的【05：99】……"),
-            L_narr("~橘鏡把两张纸条并排放在桌上，盯着看。"),
-            L_narr("[两张纸条并排：【05：99】　【99：21】]"),
-            L_say("橘鏡", "恍然 睁眼", "【05：99】【99：21】……原来是这样，我知道了！"),
-            L_think("橘鏡", null, "99 是占位符。第一张的 05，第二张的 21……合起来是——"),
-          ],
-          () => {
-            flags.hasNote2 = true;
-            updateInventory();
-            updateStageVisual();
-            resumeFreeRoam();
-          }
-        );
-      }
-    } else {
-      playLines([L_narr("~画框已经空了，纸条都拿到手了。")], resumeFreeRoam);
+    markInv("painting");
+    const stage = clickCounts.painting;
+
+    // 第一段：只说外表
+    if (stage === 0) {
+      clickCounts.painting++;
+      playLines(
+        [
+          L_narr("[墙上挂着一幅画。深色木框，画面蒙着一层灰，看不清画的是什么。]"),
+          L_narr("[有意思的是——画框，上下颠倒着挂着。]"),
+          L_think("橘鏡", "疑惑", "这幅画，是倒着挂的？挂画的人……是没注意，还是故意的？"),
+        ],
+        resumeFreeRoam
+      );
+      return;
     }
+
+    // 第二段：靠近后发现异常（仍未拿到）
+    if (stage === 1) {
+      clickCounts.painting++;
+      playLines(
+        [
+          L_narr("~橘鏡凑近了些，抬手按上画框的边。"),
+          L_narr("[指尖底下，画框背面有一块地方鼓鼓的——薄薄一片，边缘硬硬的。]"),
+          L_say("橘鏡", "疑惑 定神", "这一块……鼓鼓的，好像夹着什么东西。"),
+        ],
+        resumeFreeRoam
+      );
+      return;
+    }
+
+    // 第三段：取下画框，拿到纸条
+    if (!flags.hasNote2) {
+      clickCounts.painting++;
+      playLines(
+        [
+          L_narr("~橘鏡扶着画框，把它从墙上摘了下来，翻到背面。"),
+          L_narr("[画框背板与边框的缝隙里，塞着一张对折过好几道的白纸。]"),
+          L_say("橘鏡", "恍然 睁眼", "果然夹在这后面。"),
+          L_narr("~橘鏡把纸抽出来，捏在手里。"),
+          L_think("橘鏡", "专注 抿嘴", "又是一张纸。上面写了什么，等会儿再看——先收好。"),
+          L_narr("~橘鏡把画框靠在墙边，没有再挂回去。"),
+        ],
+        () => {
+          flags.hasNote2 = true;
+          updateInventory();
+          updateStageVisual();
+          resumeFreeRoam();
+        }
+      );
+      return;
+    }
+
+    playLines(
+      [
+        cycle(
+          [
+            L_narr("~画框靠在墙边，背面已经空了。"),
+            L_think("橘鏡", null, "为什么要把纸藏在画的后面？而且……还要把画倒过来挂。"),
+          ],
+          "painting"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
   function onPuddle() {
-    const arr = [
-      L_think("橘鏡", "观察", "一滩水渍，倒映着天花板……我抬头看不清的，水里反而清楚。"),
-      L_narr("~水面很静，倒影里的天花板，比抬头看到的还要清楚几分。"),
-      L_think("橘鏡", null, "这滩水……到底是什么时候积下的？地上明明没有漏水的痕迹。"),
-      L_narr("~水渍边缘已经有点发黑了，像是放了很久。"),
-    ];
-    playLines([cycle(arr, "puddle")], resumeFreeRoam);
+    markInv("puddle");
+    playLines(
+      [
+        cycle(
+          [
+            L_think("橘鏡", "观察", "一滩水渍，倒映着天花板……我抬头看不清的，水里反而清楚。"),
+            L_narr("~水面很静，倒影里的天花板，比抬头看到的还要清楚几分。"),
+            L_narr("~水渍边缘已经有点发黑了，像是放了很久。地上却没有漏水的痕迹。"),
+          ],
+          "puddle"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
+  // ---- 倒计时屏：只在点击时给出催促提示 ----
   function onCountdown() {
     if (!flags.batteryInstalled) {
       playLines(
@@ -337,7 +485,7 @@
           L_say("橘鏡", "惊 睁大眼", "那是……倒计时？！"),
           L_think(
             "橘鏡",
-            null,
+            "紧张",
             "它在倒数。等它归零，会发生什么？不行……我得先搞清楚这是什么地方。"
           ),
         ],
@@ -345,14 +493,23 @@
       );
       return;
     }
-    const arr = [
-      L_think("橘鏡", null, "倒计时还在走。等它归零，会发生什么？"),
-      L_narr("~红色数字一格一格往下跳，看久了让人心慌。"),
-      L_think("橘鏡", null, "没有人告诉我，这个倒计时代表什么。不去想了。"),
-    ];
-    playLines([cycle(arr, "countdown")], resumeFreeRoam);
+    markInv("countdown");
+    playLines(
+      [
+        cycle(
+          [
+            L_think("橘鏡", "紧张 催促", "时间一点点变少！快点探索吧。"),
+            L_narr("~红色的数字一格一格往下跳。看久了，心跳好像也跟着一起走。"),
+            L_think("橘鏡", "紧张", "没人告诉我它归零之后会怎样——可越是这样，越让人不敢停下来。"),
+          ],
+          "countdown"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
+  // ---- 门：不指向时钟 ----
   function onDoor() {
     if (!flags.batteryInstalled) {
       playLines([L_say("橘鏡", null, "摸到门：锁着，推不开。")], resumeFreeRoam);
@@ -362,36 +519,49 @@
       playLines([L_narr("~面板亮着，选择工作间的界面还开着。")], resumeFreeRoam);
       return;
     }
-    if (clickCounts.door === 0) {
-      clickCounts.door++;
-      playLines(
-        [L_think("橘鏡", null, "锁死了。门旁边好像有什么……（时钟和面板）")],
-        resumeFreeRoam
-      );
-    } else {
-      const arr = [
-        L_narr("~门缝里透不出一点光，确实锁死了。"),
-        L_think("橘鏡", null, "得先解决旁边那个时钟和面板，光靠蛮力打不开这扇门。"),
-      ];
-      playLines([cycle(arr, "door")], resumeFreeRoam);
-    }
+    markInv("door");
+    playLines(
+      [
+        cycle(
+          [
+            L_narr("~橘鏡走到门前，握住把手用力推了推。门纹丝不动。"),
+            L_narr("~门缝压得很紧，连一丝光都透不进来。锁扣那边传来沉闷的金属声。"),
+            L_think("橘鏡", null, "推不动。这门不是用力气就能打开的。"),
+          ],
+          "door"
+        ),
+      ],
+      resumeFreeRoam
+    );
   }
 
+  // ---- 电子面板：不指向时钟 ----
   function onPanel() {
     if (flags.solved) {
       playLines([L_narr("~面板亮着，选择工作间的界面还开着。")], resumeFreeRoam);
       return;
     }
-    if (!flags.hasNote1 && !flags.hasNote2) {
-      playLines([L_think("橘鏡", null, "一块黑屏的面板，没通电。")], resumeFreeRoam);
+    if (!flags.batteryInstalled) {
+      playLines([L_say("橘鏡", null, "太黑了，什么都看不清。")], resumeFreeRoam);
       return;
     }
+    markInv("panel");
     playLines(
-      [L_narr("~没反应。得先解开旁边那个时钟？")],
+      [
+        cycle(
+          [
+            L_narr("~面板嵌在门边的墙上，比一块砖大不了多少，整块屏幕是全黑的。"),
+            L_narr("~橘鏡敲了敲面板边缘。没有反应，连一丝电流声都没有。"),
+            L_think("橘鏡", "观察", "不通电的屏幕。它在等什么？——还是说，在等什么人把它打开。"),
+          ],
+          "panel"
+        ),
+      ],
       resumeFreeRoam
     );
   }
 
+  // ---- 时钟：解谜入口（带全调查门禁） ----
   function onClock() {
     if (!flags.batteryInstalled) {
       playLines([L_say("橘鏡", null, "太黑了，看不清时钟。")], resumeFreeRoam);
@@ -401,47 +571,100 @@
       playLines([L_narr("~时钟已经归位了，面板亮着呢。")], resumeFreeRoam);
       return;
     }
-    if (!flags.hasNote2) {
+
+    const firstTime = !investigated.clock;
+    markInv("clock");
+
+    // 第一次调查：只报时间
+    if (firstTime) {
+      playLines(
+        [
+          L_narr("~橘鏡走到门旁的墙边。墙上嵌着一个圆形的时钟，指针缓慢地走着。"),
+          L_narr("[时钟显示着：凌晨 2 点 14 分。]"),
+          L_say("橘鏡", "疑惑", "目前的时间——凌晨 2 点 14 分！？我晕过去了多久啊……"),
+        ],
+        resumeFreeRoam
+      );
+      return;
+    }
+
+    const notesReady = flags.hasNote1 && flags.hasNote2;
+    const explored = isFullyExplored();
+
+    // 条件齐备 → 进入拨针解谜
+    if (notesReady && explored) {
+      playLines(
+        [
+          L_narr("~橘鏡把两张纸条并排举到时钟前。"),
+          L_narr("[【05：99】　…　【99：21】]"),
+          L_say("橘鏡", "恍然 睁眼", "【05：99】【99：21】……原来是这样，我知道了！"),
+          L_think("橘鏡", "专注 咬唇", "时针拨到 5，分针拨到 21……"),
+        ],
+        () => {
+          clockHour = 2;
+          clockMin = 14;
+          clockFails = 0;
+          document.getElementById("clock-hint").textContent = "";
+          updateClockDisplay();
+          showScreen("clock");
+        }
+      );
+      return;
+    }
+
+    // 有纸条但没探索完 → 劝阻，让玩家把房间看全
+    if (notesReady && !explored) {
+      playLines(
+        [
+          L_think("橘鏡", "定神", "手上有数字，可总觉得还漏了点什么。"),
+          L_say("橘鏡", null, "还有东西没查看，全部探索完吧，万一漏下点什么就不好了。"),
+        ],
+        resumeFreeRoam
+      );
+      return;
+    }
+
+    // 线索不全
+    if (flags.hasNote1 || flags.hasNote2) {
       if (clickCounts.clock === 0) {
         clickCounts.clock++;
         playLines(
           [
-            L_narr("~橘鏡想起口袋里那张纸条，掏出来又看了一眼。"),
-            L_think(
-              "橘鏡",
-              "专注 抿嘴",
-              "纸条上写着【05：99】……是要拨动墙上的时钟吗？"
-            ),
-            L_narr("~橘鏡回到时钟前，抬手去拨指针，又停住了。"),
-            L_say(
-              "橘鏡",
-              "泄气 挠头",
-              "但 99 这个数字还是个谜……再探索看看其他地方吧，或许还缺了什么线索。"
-            ),
-            L_think("橘鏡", null, "99……肯定不对。还差一张纸条，或者别的什么。"),
+            L_narr("~橘鏡把纸条和时钟来回看了几遍。"),
+            L_think("橘鏡", "专注 抿嘴", "纸条上写着【05：99】……是要拨动这个时钟吗？"),
+            L_say("橘鏡", "泄气 挠头", "但 99 这个数字还是个谜……再探索看看其他地方吧，或许还缺了什么线索。"),
           ],
           resumeFreeRoam
         );
-      } else {
-        const arr = [
-          L_think("橘鏡", null, "【05：99】……99 到底是什么意思，再找找别的线索吧。"),
-          L_narr("~橘鏡在时钟前站了一会儿，还是没想明白，先去看看别处。"),
-        ];
-        playLines([cycle(arr, "clock")], resumeFreeRoam);
+        return;
       }
+      playLines(
+        [
+          cycle(
+            [
+              L_think("橘鏡", null, "99……肯定不对。还差一点什么，再找找看。"),
+              L_narr("~橘鏡在时钟前站了一会儿，还是没想明白，先去看看别处。"),
+            ],
+            "clock"
+          ),
+        ],
+        resumeFreeRoam
+      );
       return;
     }
-    // 两张纸条都有了，进入拨针小游戏
+
+    // 一点线索都没有
     playLines(
-      [L_think("橘鏡", "专注 咬唇", "时针拨到 5，分针拨到 21……")],
-      () => {
-        clockHour = 2;
-        clockMin = 14;
-        clockFails = 0;
-        document.getElementById("clock-hint").textContent = "";
-        updateClockDisplay();
-        showScreen("clock");
-      }
+      [
+        cycle(
+          [
+            L_think("橘鏡", null, "要我拨动它吗？可我连该拨到几点都不知道。"),
+            L_narr("~指针走得很稳，两点，十四分。和这间房一样，安静得不对劲。"),
+          ],
+          "clock"
+        ),
+      ],
+      resumeFreeRoam
     );
   }
 
@@ -497,7 +720,8 @@
     clockFails++;
     hintEl.textContent = CLOCK_FAIL_LINES[(clockFails - 1) % CLOCK_FAIL_LINES.length];
     if (clockFails >= 3) {
-      hintEl.textContent += "\n橘鏡：数字 99 是占位符，所以正确的时间是【05：21】。";
+      hintEl.textContent +=
+        "\n橘鏡：数字 99 是占位符，所以正确的时间是【05：21】。";
     }
   });
 
