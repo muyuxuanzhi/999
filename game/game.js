@@ -75,6 +75,15 @@
   let clockFails = 0;
   let clockHour = 2, clockMin = 14;
 
+  // ---------------- 场景视角：地面 / 前方墙壁 / 左墙 / 右墙 ----------------
+  let currentView = "floor";
+  const VIEW_NAMES = {
+    floor: "俯瞰房间地面",
+    front: "前方墙壁",
+    left: "左边墙壁",
+    right: "右边墙壁",
+  };
+
   // ---------------- 对话队列引擎 ----------------
   let lineQueue = [];
   let onQueueComplete = null;
@@ -138,11 +147,11 @@
     if (flags.batteryInstalled) {
       stageEl.classList.remove("stage-dark");
       stageEl.classList.add("stage-lit");
-      stageLabelEl.textContent = "明亮 · 异常空旷的关押室";
+      stageLabelEl.textContent = "明亮 · " + VIEW_NAMES[currentView];
     } else {
       stageEl.classList.remove("stage-lit");
       stageEl.classList.add("stage-dark");
-      stageLabelEl.textContent = "黑暗 · 只能摸索";
+      stageLabelEl.textContent = "黑暗 · " + VIEW_NAMES[currentView];
     }
     // 画 / 水渍 / 面板 只有开灯后才可见
     ["painting", "puddle", "panel"].forEach((id) => {
@@ -788,23 +797,67 @@
     });
   });
 
-  // ---------------- 热点定义 ----------------
+  // ---------------- 热点定义（按视角分组） ----------------
+  // 俯瞰房间地面（默认视角）：配电盒 / 桌子·抽屉 / 工牌 / 水渍
+  // 前方墙壁（↑ 从地面进入）：倒计时屏 / 时钟 / 倒挂的画
+  // 左边墙壁（← 从前方墙壁进入）：灯开关
+  // 右边墙壁（→ 从前方墙壁进入）：门 / 电子面板
   const HOTSPOTS = [
-    { id: "switch", label: "灯开关", cls: "c-switch", style: "top:38%;left:4%;width:60px;height:70px;", onClick: onSwitch },
-    { id: "fusebox", label: "配电盒", cls: "c-fusebox", style: "top:58%;left:3%;width:80px;height:70px;", onClick: onFusebox },
-    { id: "desk", label: "桌子 / 抽屉", cls: "c-desk", style: "top:66%;left:38%;width:130px;height:55px;", onClick: onDesk },
-    { id: "badge", label: "工牌", cls: "c-badge", style: "top:58%;left:44%;width:50px;height:30px;", onClick: onBadge },
-    { id: "clock", label: "时钟", cls: "c-clock", style: "top:12%;left:58%;width:75px;height:75px;border-radius:50%;", onClick: onClock },
-    { id: "panel", label: "电子面板", cls: "c-panel", style: "top:14%;left:70%;width:65px;height:70px;", onClick: onPanel },
-    { id: "painting", label: "倒挂的画", cls: "c-painting", style: "top:8%;left:28%;width:75px;height:95px;", onClick: onPainting },
-    { id: "puddle", label: "水渍", cls: "c-puddle", style: "top:80%;left:18%;width:95px;height:38px;border-radius:50%;", onClick: onPuddle },
-    { id: "countdown", label: "倒计时屏", cls: "c-countdown", style: "top:3%;left:46%;width:75px;height:26px;", onClick: onCountdown },
-    { id: "door", label: "门", cls: "c-door", style: "top:26%;left:85%;width:60px;height:150px;", onClick: onDoor },
+    { id: "fusebox", view: "floor", label: "配电盒", cls: "c-fusebox", style: "top:52%;left:10%;width:90px;height:80px;", onClick: onFusebox },
+    { id: "desk", view: "floor", label: "桌子 / 抽屉", cls: "c-desk", style: "top:50%;left:42%;width:150px;height:60px;", onClick: onDesk },
+    { id: "badge", view: "floor", label: "工牌", cls: "c-badge", style: "top:40%;left:50%;width:55px;height:32px;", onClick: onBadge },
+    { id: "puddle", view: "floor", label: "水渍", cls: "c-puddle", style: "top:70%;left:68%;width:120px;height:44px;border-radius:50%;", onClick: onPuddle },
+
+    { id: "countdown", view: "front", label: "倒计时屏", cls: "c-countdown", style: "top:8%;left:42%;width:90px;height:28px;", onClick: onCountdown },
+    { id: "clock", view: "front", label: "时钟", cls: "c-clock", style: "top:32%;left:55%;width:85px;height:85px;border-radius:50%;", onClick: onClock },
+    { id: "painting", view: "front", label: "倒挂的画", cls: "c-painting", style: "top:18%;left:16%;width:85px;height:105px;", onClick: onPainting },
+
+    { id: "switch", view: "left", label: "灯开关", cls: "c-switch", style: "top:40%;left:45%;width:70px;height:85px;", onClick: onSwitch },
+
+    { id: "door", view: "right", label: "门", cls: "c-door", style: "top:18%;left:55%;width:75px;height:175px;", onClick: onDoor },
+    { id: "panel", view: "right", label: "电子面板", cls: "c-panel", style: "top:18%;left:28%;width:70px;height:75px;", onClick: onPanel },
   ];
+
+  // 视角导航箭头：floor --↑--> front --←/→--> left/right，left/right --返回--> front
+  const NAV_MAP = {
+    floor: [{ dir: "up", label: "前方墙壁", to: "front" }],
+    front: [
+      { dir: "down", label: "地面", to: "floor" },
+      { dir: "left", label: "左边墙壁", to: "left" },
+      { dir: "right", label: "右边墙壁", to: "right" },
+    ],
+    left: [{ dir: "right", label: "前方墙壁", to: "front" }],
+    right: [{ dir: "left", label: "前方墙壁", to: "front" }],
+  };
+  const ARROW_GLYPH = { up: "▲", down: "▼", left: "◀", right: "▶" };
+  const ARROW_STYLE = {
+    up: "top:44px;left:50%;transform:translateX(-50%);",
+    down: "bottom:16px;left:50%;transform:translateX(-50%);",
+    left: "top:50%;left:12px;transform:translateY(-50%);",
+    right: "top:50%;right:12px;transform:translateY(-50%);",
+  };
+
+  function buildNavArrows() {
+    const arrows = NAV_MAP[currentView] || [];
+    arrows.forEach((a) => {
+      const el = document.createElement("div");
+      el.className = "nav-arrow nav-" + a.dir;
+      el.setAttribute("style", ARROW_STYLE[a.dir]);
+      el.innerHTML =
+        '<span class="nav-glyph">' + ARROW_GLYPH[a.dir] + "</span><span>" + a.label + "</span>";
+      el.addEventListener("click", () => switchView(a.to));
+      hotspotsEl.appendChild(el);
+    });
+  }
+
+  function switchView(view) {
+    currentView = view;
+    buildHotspots();
+  }
 
   function buildHotspots() {
     hotspotsEl.innerHTML = "";
-    HOTSPOTS.forEach((h) => {
+    HOTSPOTS.filter((h) => h.view === currentView).forEach((h) => {
       const el = document.createElement("div");
       el.id = "hs-" + h.id;
       el.className = "hotspot " + h.cls;
@@ -816,6 +869,8 @@
       el.addEventListener("click", h.onClick);
       hotspotsEl.appendChild(el);
     });
+    buildNavArrows();
+    updateStageVisual();
   }
 
   // ---------------- 倒计时装饰（纯氛围，不影响玩法） ----------------
@@ -832,21 +887,17 @@
     showScreen("game");
     playLines(
       [
-        L_narr("[一个昏暗的房间，几乎伸手不见五指。只有天花板角落，一点幽暗的红光，一闪一闪。]"),
-        L_narr("[主角躺在地板上，缓缓睁开眼睛。]"),
+        L_narr("[一个昏暗的房间，几乎伸手不见五指。只有正前方高处，一点幽暗的红光，一闪一闪。]"),
+        L_narr("[橘鏡躺在地板上，缓缓睁开眼睛。]"),
         L_say("橘鏡", "不清醒 疑惑", "这……是哪里？我记得……我乘了电梯……然后？……想不起来了。"),
         L_think("橘鏡", null, "头好沉。我怎么会躺在地上？"),
-        L_narr("~橘鏡撑着地坐起来，环顾四周，只看得见黑暗里那一点红光。"),
-        L_think("橘鏡", "紧张 皱眉", "太黑了。先看看周围有什么。"),
-        L_narr("~橘鏡贴着墙，慢慢摸索着前进。"),
-        L_narr("[指尖碰到冰凉的墙面。]"),
-        L_think("橘鏡", null, "墙。很凉。这间房，好像不小……"),
-        L_narr("~橘鏡抬头，看清了那一点红光——是天花板角落的一块电子屏，红色的数字正在跳动。"),
-        L_narr("[倒计时屏：19:37 → 19:36 → 19:35 ……]"),
-        L_say("橘鏡", "惊 睁大眼", "那是……倒计时？！"),
-        L_think("橘鏡", null, "它在倒数。等它归零，会发生什么？不行……我得先搞清楚这是什么地方。"),
+        L_narr("~橘鏡撑着地坐起来，环顾四周，只看得见那一点红光，忽明忽暗，离得很远。"),
+        L_think("橘鏡", "紧张 皱眉", "太黑了。先摸摸脚边，看看有什么。"),
+        L_narr("~橘鏡伸手在周围摸索。"),
+        L_narr("[指尖碰到冰凉的地面，还有一些家具模糊的轮廓。]"),
+        L_think("橘鏡", null, "地上好像有桌子之类的东西……一样一样摸清楚吧。"),
         L_narr(
-          "【可交互】黑暗中，橘鏡只能靠摸索。灯开关、配电盒、门、桌、工牌……都只能摸到轮廓。点击场景中的色块，试着调查周围吧。"
+          "【可交互】点击场景中的色块可以调查周围；点击画面边缘的箭头，可以转动视角，看看房间其他角落。"
         ),
       ],
       () => {

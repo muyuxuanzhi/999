@@ -86,6 +86,28 @@ html, body {
 
 #hotspots { position: absolute; inset: 0; }
 
+/* 视角切换箭头（UI 层，不受黑暗影响，始终可点） */
+.nav-arrow {
+  position: absolute;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.85);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
+  transition: background 0.15s, transform 0.15s;
+  z-index: 3;
+}
+.nav-arrow:hover {
+  background: rgba(255,255,255,0.22);
+  transform: scale(1.05);
+}
+.nav-glyph { font-size: 13px; }
+
 .hotspot {
   position: absolute;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
