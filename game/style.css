@@ -79,6 +79,12 @@ html, body {
 .stage-lit.stage-view-floor {
   background: #9a9a9a url("img/bg-floor.png") center / cover no-repeat;
 }
+/* 前方墙壁 / 左边墙壁 / 右边墙壁：花纹墙砖（img/bg-wall.png，三面墙共用） */
+.stage-lit.stage-view-front,
+.stage-lit.stage-view-left,
+.stage-lit.stage-view-right {
+  background: #b9bcc2 url("img/bg-wall.png") center / cover no-repeat;
+}
 
 #stage-label {
   position: absolute;
