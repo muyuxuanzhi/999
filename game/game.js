@@ -229,6 +229,16 @@
     }
 
     if (id === "note1") {
+      if (!flags.batteryInstalled) {
+        playLines(
+          [
+            L_narr("~橘鏡把纸条举到眼前，可周围太黑了，什么都看不清。"),
+            L_think("橘鏡", "思考", "太暗了，看不清上面写的字……得先想办法弄点光亮。"),
+          ],
+          resumeFreeRoam
+        );
+        return;
+      }
       const lines = [
         L_narr("[一张有点皱的白纸，上面用黑色笔写着【05：99】。]"),
         L_think("橘鏡", "思考", "不知道能用在哪里的数字，也许是什么线索？再探索看看。"),
@@ -244,6 +254,16 @@
     }
 
     if (id === "note2") {
+      if (!flags.batteryInstalled) {
+        playLines(
+          [
+            L_narr("~橘鏡把纸条举到眼前，可周围太黑了，什么都看不清。"),
+            L_think("橘鏡", "思考", "太暗了，看不清上面写的字……得先想办法弄点光亮。"),
+          ],
+          resumeFreeRoam
+        );
+        return;
+      }
       const lines = [
         L_narr("[一张对折过好几道的白纸，上面用黑色笔写着【99：21】。]"),
         L_think("橘鏡", "思考", "又是这种写法。和刚才那张，会不会有什么关系？"),
