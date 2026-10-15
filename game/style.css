@@ -74,16 +74,24 @@ html, body {
   background: linear-gradient(#cfd6e0, #aab4c4);
 }
 
-/* 视角专属背景图（明亮版） */
+/* 视角专属背景图（明亮版）：缩小到原图 1/4 后平铺填满 */
 /* 俯瞰地面：灰白方格地砖（img/bg-floor.png，可用同名文件直接替换） */
 .stage-lit.stage-view-floor {
-  background: #9a9a9a url("img/bg-floor.png") center / cover no-repeat;
+  background-color: #9a9a9a;
+  background-image: url("img/bg-floor.png");
+  background-size: 25% auto;
+  background-repeat: repeat;
+  background-position: center;
 }
 /* 前方墙壁 / 左边墙壁 / 右边墙壁：花纹墙砖（img/bg-wall.png，三面墙共用） */
 .stage-lit.stage-view-front,
 .stage-lit.stage-view-left,
 .stage-lit.stage-view-right {
-  background: #b9bcc2 url("img/bg-wall.png") center / cover no-repeat;
+  background-color: #b9bcc2;
+  background-image: url("img/bg-wall.png");
+  background-size: 25% auto;
+  background-repeat: repeat;
+  background-position: center;
 }
 
 #stage-label {
