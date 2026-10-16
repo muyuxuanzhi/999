@@ -291,11 +291,7 @@
       el.classList.toggle("hidden-item", !lit);
     });
 
-    // 教学性高亮：持有电池 → 配电盒；已通电但没开灯 → 灯开关；时钟已拨对 → 电子面板
-    const fuseEl = document.getElementById("hs-fusebox");
-    if (fuseEl) fuseEl.classList.toggle("glow", flags.hasBattery && !flags.powerOn);
-    const switchEl = document.getElementById("hs-switch");
-    if (switchEl) switchEl.classList.toggle("glow", flags.powerOn && !lit);
+    // 引导高亮：只保留「时钟拨对 → 电子面板」，配电盒与灯开关不再提示
     const panelEl = document.getElementById("hs-panel");
     if (panelEl) panelEl.classList.toggle("glow", flags.clockSolved && !flags.solved);
 
@@ -305,11 +301,10 @@
       if (el) el.classList.toggle("dim", !lit);
     });
 
-    // 视角箭头上的引导提示：通电后提醒去左边墙壁按开关；时钟拨对后提醒去右边墙壁看面板
+    // 视角箭头引导：仅时钟拨对后提醒去右边墙壁看面板
     document.querySelectorAll(".nav-arrow").forEach((el) => {
-      const guideLeft = flags.powerOn && !lit && el.dataset.to === "left";
       const guideRight = flags.clockSolved && !flags.solved && el.dataset.to === "right";
-      el.classList.toggle("nav-guide", guideLeft || guideRight);
+      el.classList.toggle("nav-guide", guideRight);
     });
   }
 
@@ -354,7 +349,7 @@
       playLines(
         [
           L_narr("[一节普通的干电池。外壳上印着模糊的型号，像是从某个旧机器上拆下来的。]"),
-          L_think("橘鏡", null, "电池啊。这种地方捡到，八成有用。揣上。"),
+          L_think("橘鏡", null, "电池。先揣着。"),
         ],
         resumeFreeRoam
       );
@@ -372,17 +367,7 @@
         );
         return;
       }
-      const lines = [
-        L_narr("[一张有点皱的白纸，上面用黑色笔写着【05：99】。]"),
-        L_think("橘鏡", null, "【05：99】。啧，这数字留着，肯定用得上。"),
-      ];
-      if (flags.hasNote2) {
-        lines.push(
-          L_narr("[另一张纸条上，用倒着的字迹写着【12：66】。]"),
-          L_think("橘鏡", "恍然", "……哦，这张是倒着写的。翻个个儿，才是真话。")
-        );
-      }
-      playLines(lines, resumeFreeRoam);
+      playLines([L_narr("[纸上写着【05：99】。]")], resumeFreeRoam);
       return;
     }
 
@@ -397,34 +382,17 @@
         );
         return;
       }
-      // 第一次查看：看到的是倒着写的 12:66，还不明白
+      // 渐进式：第一次只描述；第二次只描述翻转结果；第三次起才多一句
       if (clickCounts.note2 === 0) {
         clickCounts.note2++;
-        playLines(
-          [
-            L_narr("[一张对折过好几道的白纸，上面用黑色笔写着一串数字，字迹却是倒着的。]"),
-            L_narr("[【12：66】——数字上下颠倒，笔画像反过来写的一样。]"),
-            L_think("橘鏡", "疑惑", "诶，这字怎么是倒的？……跟那幅倒挂的画，一个德性嘛。"),
-            L_think("橘鏡", null, "摆明了要我倒过来看。行吧，配合一下。"),
-          ],
-          resumeFreeRoam
-        );
+        playLines([L_narr("[纸上的字头朝下：【12：66】。]")], resumeFreeRoam);
         return;
       }
-      // 第二次及以后：倒过来看，得到 99:21
-      const lines = [
-        L_narr("~橘鏡把纸条倒过来，重新看了一遍。"),
-        L_narr("[倒过来之后，那串数字变成了【99：21】。]"),
-        L_think("橘鏡", "恍然", "倒过来是【99：21】。……又跟第一张一个套路。"),
-      ];
-      if (flags.hasNote1) {
-        lines.push(
-          L_think(
-            "橘鏡",
-            "疑惑",
-            "【05：99】、【99：21】——两个「99」，成心不说清楚呢。"
-          )
-        );
+      const seen = clickCounts.note2;
+      clickCounts.note2++;
+      const lines = [L_narr("[纸条转了半圈，字变成【99：21】。]")];
+      if (seen >= 2 && flags.hasNote1) {
+        lines.push(L_say("橘鏡", null, "两张纸上都有 99。"));
       }
       playLines(lines, resumeFreeRoam);
       return;
@@ -463,25 +431,7 @@
   function onSwitch() {
     // ① 还没通电：按了没反应
     if (!flags.powerOn) {
-      if (!flags.hasBattery) {
-        playLines(
-          [
-            L_say("橘鏡", "疑惑", "诶？没电。"),
-            L_narr("~橘鏡又按了按开关，灯还是没有反应。"),
-            L_think("橘鏡", "平静", "开关是好的，是这屋压根没电。"),
-          ],
-          resumeFreeRoam
-        );
-      } else {
-        playLines(
-          [
-            L_narr("~橘鏡按下开关。灯没有亮。"),
-            L_think("橘鏡", "疑惑", "咔哒一声，挺响，光倒是一点没有。"),
-            L_think("橘鏡", null, "线路没电。手里这节电池，多半就是喂给它的。"),
-          ],
-          resumeFreeRoam
-        );
-      }
+      playLines([L_narr("[咔哒。灯没亮。]")], resumeFreeRoam);
       return;
     }
 
@@ -515,15 +465,7 @@
     // ③ 灯已经亮了：循环确认台词
     markInv("switch");
     playLines(
-      [
-        cycle(
-          [
-            L_narr("~橘鏡又按了按灯开关。开关「咔哒」响了一声，灯本来就是亮的。"),
-            L_think("橘鏡", null, "开关没坏。这屋也就这么点东西了。"),
-          ],
-          "switch"
-        ),
-      ],
+      [L_narr("~橘鏡又按了按灯开关。开关「咔哒」响了一声，灯本来就是亮的。")],
       resumeFreeRoam
     );
   }
@@ -532,30 +474,13 @@
     // ② 已通电（灯可能亮着，也可能还灭着）——只做确认
     if (flags.powerOn) {
       markInv("fusebox");
-      playLines(
-        [
-          cycle(
-            [
-              L_think("橘鏡", null, "电池装好了，别的接口都是空的。"),
-              L_think("橘鏡", "思索", "线路通了。开关在左边墙上，按下去灯才亮——故意拆成两步，挺会玩。"),
-            ],
-            "fusebox"
-          ),
-        ],
-        resumeFreeRoam
-      );
+      playLines([L_narr("[盒里的小灯亮着，别的接口都是空的。]")], resumeFreeRoam);
       return;
     }
 
     // ① 还没装电池
     if (!flags.hasBattery) {
-      playLines(
-        [
-          L_think("橘鏡", "观察", "配电盒里空着一个电池槽。"),
-          L_think("橘鏡", null, "没电就是因为它。去找节电池。"),
-        ],
-        resumeFreeRoam
-      );
+      playLines([L_narr("[盒盖内侧，有个空着的电池槽。]")], resumeFreeRoam);
       return;
     }
 
@@ -564,9 +489,7 @@
       [
         L_narr("~橘鏡蹲在配电盒前，把电池对准卡槽，推进去。"),
         L_narr("[「咔」的一声，电池卡进了槽里。]"),
-        L_narr("[配电盒内部传来一声轻响，指示灯从暗红跳成了微亮的绿色——线路通了。]"),
-        L_think("橘鏡", "观察", "通电了。灯还是灭的。"),
-        L_think("橘鏡", null, "还得去按开关。左边墙上，早就看见了。"),
+        L_narr("[盒里一盏小灯闪了一下。]"),
       ],
       () => {
         flags.powerOn = true;
@@ -662,45 +585,34 @@
     markInv("painting");
     const stage = clickCounts.painting;
 
-    // 第一段：只说外表
+    // 渐进式：前三次只给描述，第四次才取下画框
     if (stage === 0) {
       clickCounts.painting++;
-      playLines(
-        [
-          L_narr("[墙上挂着一幅画。深色木框，画面蒙着一层灰，看不清画的是什么。]"),
-          L_narr("[有意思的是——画框，上下颠倒着挂着。]"),
-          L_think("橘鏡", "疑惑", "这画怎么是倒着挂的？挂画的人，眼神儿不行，还是故意的？"),
-        ],
-        resumeFreeRoam
-      );
+      playLines([L_narr("[一幅小画，画框落了灰。]")], resumeFreeRoam);
       return;
     }
 
-    // 第二段：靠近后发现异常（仍未拿到）
     if (stage === 1) {
       clickCounts.painting++;
-      playLines(
-        [
-          L_narr("~橘鏡凑近了些，抬手按上画框的边。"),
-          L_narr("[指尖底下，画框背面有一块地方鼓鼓的——薄薄一片，边缘硬硬的。]"),
-          L_say("橘鏡", "疑惑", "这块儿鼓鼓的，像夹了东西。"),
-        ],
-        resumeFreeRoam
-      );
+      playLines([L_narr("[画里是栋房子，屋顶在下。]")], resumeFreeRoam);
       return;
     }
 
-    // 第三段：取下画框，拿到纸条
+    if (stage === 2) {
+      clickCounts.painting++;
+      playLines([L_narr("[画框后面，鼓出一块。]")], resumeFreeRoam);
+      return;
+    }
+
+    // 取下画框，拿到纸条
     if (!flags.hasNote2) {
       clickCounts.painting++;
       playLines(
         [
           L_narr("~橘鏡扶着画框，把它从墙上摘了下来，翻到背面。"),
           L_narr("[画框背板与边框的缝隙里，塞着一张对折过好几道的白纸。]"),
-          L_say("橘鏡", "恍然", "哦，果然藏在这儿。"),
-          L_narr("~橘鏡把纸抽出来，捏在手里。"),
-          L_think("橘鏡", null, "又一张纸。收好，等会儿一起看。"),
-          L_narr("~橘鏡把画框靠在墙边，没有再挂回去。"),
+          L_say("橘鏡", null, "有张纸。"),
+          L_narr("~橘鏡把纸抽出来，捏在手里，把画框靠在墙边。"),
         ],
         () => {
           flags.hasNote2 = true;
@@ -712,18 +624,7 @@
       return;
     }
 
-    playLines(
-      [
-        cycle(
-          [
-            L_narr("~画框靠在墙边，背面已经空了。"),
-            L_think("橘鏡", null, "纸藏在画后面，画还倒着挂……这套路，是怕我找不着吗。"),
-          ],
-          "painting"
-        ),
-      ],
-      resumeFreeRoam
-    );
+    playLines([L_narr("~画框靠在墙边，背面已经空了。")], resumeFreeRoam);
   }
 
   function onPuddle() {
@@ -747,19 +648,7 @@
       return;
     }
 
-    playLines(
-      [
-        cycle(
-          [
-            L_think("橘鏡", "观察", "一滩水，把天花板倒映出来了。抬头看不清的，低头倒看得清。"),
-            L_narr("~水面很静，倒影里的天花板，比抬头看到的还要清楚几分。"),
-            L_narr("~水渍边缘已经有点发黑了，像是放了很久。地上却没有漏水的痕迹。"),
-          ],
-          "puddle"
-        ),
-      ],
-      resumeFreeRoam
-    );
+    playLines([L_narr("[水面平静，映着天花板。]")], resumeFreeRoam);
   }
 
   // ---- 倒计时屏：只在点击时给出催促提示 ----
@@ -893,10 +782,8 @@
     if (notesReady && explored) {
       playLines(
         [
-          L_narr("~橘鏡把两张纸条并排举到时钟前。"),
-          L_narr("[【05：99】　…　【12：66】]"),
-          L_say("橘鏡", "恍然", "第二张是倒着写的……一倒过来，两个 99 就对齐了！"),
-          L_think("橘鏡", null, "99 是同一个数，换掉它就成。答案嘛……心里有数。"),
+          L_narr("[两张纸条摊在时钟前。]"),
+          L_say("橘鏡", null, "试试吧。"),
         ],
         () => {
           clockHour = 2;
@@ -912,13 +799,7 @@
 
     // 有纸条但没探索完 → 劝阻，让玩家把房间看全
     if (notesReady && !explored) {
-      playLines(
-        [
-          L_think("橘鏡", "平静", "数字有了，总觉得还缺点什么。"),
-          L_say("橘鏡", null, "还有没看的东西，全看完再动它，免得漏了什么。"),
-        ],
-        resumeFreeRoam
-      );
+      playLines([L_say("橘鏡", null, "先不急，屋里还有地方没转过。")], resumeFreeRoam);
       return;
     }
 
@@ -1001,9 +882,9 @@
   });
 
   const CLOCK_FAIL_LINES = [
-    "「咔。」时钟没反应。",
-    "「咔。」啧，又错了。手别抖啊。",
-    "「咔。」行吧，重来。",
+    "「咔。」没反应。",
+    "「咔。」没反应。",
+    "「咔。」没反应。",
   ];
 
   document.getElementById("btn-clock-confirm").addEventListener("click", () => {
@@ -1013,9 +894,7 @@
       playLines(
         [
           L_narr("[「咔哒。」时钟归位。]"),
-          L_say("橘鏡", "恍然", "哦——原来如此。"),
-          L_narr("~就在这时，右边墙的方向传来一声轻微的电流声，像是什么东西被接通了。"),
-          L_think("橘鏡", "平静", "右边墙有动静。面板？过去看看就懂了。"),
+          L_narr("~就在这时，右边墙的方向传来一声轻微的电流声。"),
         ],
         () => {
           clockFails = 0;
@@ -1049,9 +928,11 @@
 
     clockFails++;
     hintEl.textContent = CLOCK_FAIL_LINES[(clockFails - 1) % CLOCK_FAIL_LINES.length];
-    if (clockFails >= 3) {
-      hintEl.textContent +=
-        "\n橘鏡：数字99是占位符，正确答案【05：21】。……切，早说不就好了。";
+    // 阶梯提示：只给方向，不给答案
+    if (clockFails === 3) {
+      hintEl.textContent += "\n橘鏡：再看看纸条。";
+    } else if (clockFails >= 6) {
+      hintEl.textContent += "\n橘鏡：99 好像不是真数字。";
     }
   });
 
@@ -1146,7 +1027,7 @@
 
   // ---------------- 热点定义（按视角分组） ----------------
   // 俯瞰房间地面（默认视角）：配电盒 / 桌子·抽屉 / 工牌 / 水渍
-  // 前方墙壁（↑ 从地面进入）：倒计时屏 / 时钟 / 倒挂的画
+  // 前方墙壁（↑ 从地面进入）：倒计时屏 / 时钟 / 画
   // 左边墙壁（← 从前方墙壁进入）：灯开关
   // 右边墙壁（→ 从前方墙壁进入）：门 / 电子面板
   const HOTSPOTS = [
@@ -1157,7 +1038,7 @@
 
     { id: "countdown", view: "front", label: "倒计时屏", cls: "c-countdown", style: "top:8%;left:42%;width:90px;height:28px;", onClick: onCountdown },
     { id: "clock", view: "front", label: "时钟", cls: "c-clock", style: "top:32%;left:55%;width:85px;height:85px;border-radius:50%;", onClick: onClock },
-    { id: "painting", view: "front", label: "倒挂的画", cls: "c-painting", style: "top:18%;left:16%;width:85px;height:105px;", onClick: onPainting },
+    { id: "painting", view: "front", label: "画", cls: "c-painting", style: "top:18%;left:16%;width:85px;height:105px;", onClick: onPainting },
 
     { id: "switch", view: "left", label: "灯开关", cls: "c-switch", style: "top:40%;left:45%;width:70px;height:85px;", onClick: onSwitch },
 
