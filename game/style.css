@@ -280,7 +280,16 @@ html, body {
 #btn-clock-close { background: #444 !important; color: #eee !important; }
 
 .door-list { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
-.door-btn { width: 100%; }
+.door-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.deposit-tag {
+  font-size: 12px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(0,0,0,0.22); color: #fff; letter-spacing: 1px;
+}
+.deposit-full { background: rgba(74, 222, 128, 0.28); }
+.deposit-short { background: rgba(232, 163, 59, 0.32); }
 
 /* ---------- 水渍立绘弹窗 ---------- */
 .portrait-box { min-width: 340px; max-width: 420px; }
