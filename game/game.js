@@ -19,6 +19,10 @@
     clock: document.getElementById("screen-clock"),
     doors: document.getElementById("screen-doors"),
     end: document.getElementById("screen-end"),
+    portrait: document.getElementById("screen-portrait"),
+    sysmenu: document.getElementById("screen-sysmenu"),
+    saves: document.getElementById("screen-saves"),
+    flowchart: document.getElementById("screen-flowchart"),
   };
   const stageEl = document.getElementById("stage");
   const stageLabelEl = document.getElementById("stage-label");
@@ -33,6 +37,7 @@
   function showScreen(name) {
     Object.values(screens).forEach((s) => s.classList.remove("active"));
     screens[name].classList.add("active");
+    if (name === "title") refreshMainMenuButtons();
   }
 
   // ---------------- 游戏状态 ----------------
@@ -45,6 +50,8 @@
     hasBadge: false, // 工牌已拾取（重要道具，预留跨章节继承）
     clockSolved: false, // 时钟已拨对，电子面板已通电，但玩家还没去右墙点击它
     solved: false, // 玩家已点击电子面板，触发了入职系统
+    sawFace: false, // 已在水渍中看清自己的脸（一次性剧情）
+    canSave: false, // 从看清脸那一刻起，解锁存档/读档/流程图
   };
 
   const clickCounts = {
@@ -76,6 +83,110 @@
     return remainingCount() === 0;
   }
 
+  // ---------------- 持久化：全局解锁（跨存档 / 跨周目） ----------------
+  const GLOBAL_KEY = "g999_global_v1";
+  const SAVES_KEY = "g999_saves_v1";
+  const SAVE_SLOT_COUNT = 9;
+
+  function loadGlobalState() {
+    try {
+      const raw = localStorage.getItem(GLOBAL_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return Object.assign({ trueRouteUnlocked: false, endingsCleared: [] }, parsed);
+      }
+    } catch (e) {}
+    return { trueRouteUnlocked: false, endingsCleared: [] };
+  }
+  function saveGlobalState() {
+    try { localStorage.setItem(GLOBAL_KEY, JSON.stringify(globalState)); } catch (e) {}
+  }
+  const globalState = loadGlobalState();
+
+  function loadSaveSlots() {
+    try {
+      const raw = localStorage.getItem(SAVES_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === SAVE_SLOT_COUNT) return arr;
+      }
+    } catch (e) {}
+    return new Array(SAVE_SLOT_COUNT).fill(null);
+  }
+  function persistSaveSlots() {
+    try { localStorage.setItem(SAVES_KEY, JSON.stringify(saveSlots)); } catch (e) {}
+  }
+  const saveSlots = loadSaveSlots();
+
+  function latestSlotIndex() {
+    let best = -1, bestTime = -1;
+    saveSlots.forEach((s, i) => {
+      if (s && s.savedAt > bestTime) { bestTime = s.savedAt; best = i; }
+    });
+    return best;
+  }
+
+  // ---------------- 存档：进度名 / 用时 / 序列化 ----------------
+  let playStartTimestamp = Date.now();
+  let accumulatedSeconds = 0; // 从读档中继承的已用时长
+
+  function currentElapsedSeconds() {
+    return accumulatedSeconds + Math.floor((Date.now() - playStartTimestamp) / 1000);
+  }
+  function formatDuration(totalSec) {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+  function computeProgressName() {
+    if (flags.solved) return "序幕 · 系统已启动（即将抉择）";
+    if (flags.clockSolved) return "序幕 · 时钟已解（待启动系统）";
+    if (flags.hasNote1 && flags.hasNote2 && isFullyExplored()) return "序幕 · 线索齐备（待解时钟）";
+    if (flags.canSave) return "序幕 · 已看清自己的脸";
+    if (flags.batteryInstalled) return "序幕 · 已开灯探索";
+    if (flags.powerOn) return "序幕 · 线路已通（待开灯）";
+    if (flags.hasBattery) return "序幕 · 摸黑拾物";
+    return "序幕 · 摸黑苏醒";
+  }
+
+  function buildSaveData() {
+    return {
+      version: 1,
+      savedAt: Date.now(),
+      progressName: computeProgressName(),
+      elapsedSeconds: currentElapsedSeconds(),
+      rescued: [], // 占位：序幕暂无可救 NPC，供后续房间继承同一存档结构
+      state: {
+        flags: Object.assign({}, flags),
+        clickCounts: Object.assign({}, clickCounts),
+        investigated: Object.assign({}, investigated),
+        clockFails, clockHour, clockMin, currentView,
+        countdownSeconds,
+      },
+    };
+  }
+
+  function applySaveData(data) {
+    const st = data.state;
+    Object.assign(flags, st.flags);
+    Object.assign(clickCounts, st.clickCounts);
+    Object.assign(investigated, st.investigated);
+    clockFails = st.clockFails;
+    clockHour = st.clockHour;
+    clockMin = st.clockMin;
+    currentView = st.currentView;
+    if (typeof st.countdownSeconds === "number") countdownSeconds = st.countdownSeconds;
+    accumulatedSeconds = data.elapsedSeconds || 0;
+    playStartTimestamp = Date.now();
+
+    showScreen("game");
+    buildHotspots();
+    updateStageVisual();
+    updateInventory();
+    updateSaveIconVisibility();
+    resumeFreeRoam();
+  }
+
   let clockFails = 0;
   let clockHour = 2, clockMin = 14;
 
@@ -99,6 +210,13 @@
   function setHotspotsEnabled(enabled) {
     hotspotsEl.style.pointerEvents = enabled ? "auto" : "none";
     inventoryEl.style.pointerEvents = enabled ? "auto" : "none";
+    const sysBtn = document.getElementById("btn-system");
+    if (sysBtn) sysBtn.style.pointerEvents = enabled ? "auto" : "none";
+  }
+
+  function updateSaveIconVisibility() {
+    const btn = document.getElementById("btn-system");
+    if (btn) btn.style.display = flags.canSave ? "inline-flex" : "none";
   }
 
   function playLines(lines, onDone) {
@@ -610,6 +728,25 @@
 
   function onPuddle() {
     markInv("puddle");
+
+    if (!flags.sawFace) {
+      playLines(
+        [
+          L_narr("~水面渐渐静下来，橘鏡低头看去。"),
+          L_narr("[水渍里，倒映出一张脸——是他自己的脸。]"),
+          L_think("橘鏡", "怔住", "……好久没这么正经地看过自己了。"),
+          L_narr("[从这一刻起，可以保存与读取进度，也能查看故事的分支流程图。]"),
+        ],
+        () => {
+          flags.sawFace = true;
+          flags.canSave = true;
+          updateSaveIconVisibility();
+          openPortrait();
+        }
+      );
+      return;
+    }
+
     playLines(
       [
         cycle(
@@ -889,6 +1026,27 @@
       );
       return;
     }
+
+    // 隐藏剧情锁：05:20 只有在「已通关过任意一次」之后才会真正生效
+    if (clockHour === 5 && clockMin === 20 && globalState.trueRouteUnlocked) {
+      showScreen("game");
+      playLines(
+        [
+          L_narr("[「咔哒。」——和上次不太一样的轻响。]"),
+          L_think("橘鏡", "怔住", "……这个时间，我没拨过。"),
+          L_narr("~没有电流声，没有系统提示音。门锁那边，自己松开了一道缝。"),
+          L_say("橘鏡", "决意", "……算了，直接走好了。"),
+        ],
+        () => {
+          clockFails = 0;
+          flags.solved = true;
+          updateStageVisual();
+          finishEnding("true");
+        }
+      );
+      return;
+    }
+
     clockFails++;
     hintEl.textContent = CLOCK_FAIL_LINES[(clockFails - 1) % CLOCK_FAIL_LINES.length];
     if (clockFails >= 3) {
@@ -950,15 +1108,41 @@
   document.querySelectorAll(".door-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const door = btn.getAttribute("data-door");
-      const texts = {
-        tea: "橘鏡按下了【茶水间】。\n\n门缓缓滑开，一股冷风从门缝里涌出来。\n\n[画面一黑。序幕结束。]\n\n（闸·舌 —— 下一轮，在茶水间等待着他的，会是什么？）",
-        server: "橘鏡按下了【机房】。\n\n门缝里传出细碎的电流声，像是什么东西正在运转。\n\n[画面一黑。序幕结束。]\n\n（闸·耳 —— 下一轮，在机房等待着他的，会是什么？）",
-        dark: "橘鏡按下了【黑暗房】。\n\n门后一片比这里更深的黑，吞没了刚刚亮起的灯光。\n\n[画面一黑。序幕结束。]\n\n（闸·眼 —— 下一轮，在黑暗房等待着他的，会是什么？）",
-      };
-      document.getElementById("end-text").textContent = texts[door];
-      showScreen("end");
+      finishEnding(door);
     });
   });
+
+  // ---------------- 结局结算：标记流程图节点 / 解锁隐藏剧情锁 ----------------
+  const ENDING_TEXTS = {
+    tea: "橘鏡按下了【茶水间】。\n\n门缓缓滑开，一股冷风从门缝里涌出来。\n\n[画面一黑。序幕结束。]\n\n（闸·舌 —— 下一轮，在茶水间等待着他的，会是什么？）",
+    server: "橘鏡按下了【机房】。\n\n门缝里传出细碎的电流声，像是什么东西正在运转。\n\n[画面一黑。序幕结束。]\n\n（闸·耳 —— 下一轮，在机房等待着他的，会是什么？）",
+    dark: "橘鏡按下了【黑暗房】。\n\n门后一片比这里更深的黑，吞没了刚刚亮起的灯光。\n\n[画面一黑。序幕结束。]\n\n（闸·眼 —— 下一轮，在黑暗房等待着他的，会是什么？）",
+    true: "时钟停在【05：20】，和正确答案只差一分。\n\n可门，却自己开了。\n\n[橘鏡站在门缝前，没有回头。]\n\n（也许……这栋楼本来就没打算真的锁住他。）\n\n[隐藏分支 · 「差一分」]",
+  };
+  const ENDING_NAMES = {
+    tea: "闸 · 舌（茶水间）",
+    server: "闸 · 耳（机房）",
+    dark: "闸 · 眼（黑暗房）",
+    true: "隐藏分支 · 差一分",
+  };
+
+  function finishEnding(key) {
+    const wasUnlocked = globalState.trueRouteUnlocked;
+    if (!globalState.endingsCleared.includes(key)) {
+      globalState.endingsCleared.push(key);
+    }
+    globalState.trueRouteUnlocked = true; // 完成任意一个结局（含 BE）即揭示隐藏剧情锁
+    saveGlobalState();
+
+    document.getElementById("end-text").textContent = ENDING_TEXTS[key];
+    const lockNoticeEl = document.getElementById("end-lock-notice");
+    if (lockNoticeEl) {
+      lockNoticeEl.style.display = !wasUnlocked ? "block" : "none";
+    }
+    const flowBtn = document.getElementById("btn-end-flowchart");
+    if (flowBtn) flowBtn.style.display = flags.canSave ? "inline-block" : "none";
+    showScreen("end");
+  }
 
   // ---------------- 热点定义（按视角分组） ----------------
   // 俯瞰房间地面（默认视角）：配电盒 / 桌子·抽屉 / 工牌 / 水渍
@@ -1078,13 +1262,260 @@
   }
 
   document.getElementById("btn-start").addEventListener("click", () => {
+    resetGameState();
     playIntro();
+  });
+
+  document.getElementById("btn-continue").addEventListener("click", () => {
+    const idx = latestSlotIndex();
+    if (idx < 0) return;
+    applySaveData(saveSlots[idx]);
+  });
+
+  document.getElementById("btn-load-menu").addEventListener("click", () => {
+    openSaves("load", "title");
+  });
+
+  document.getElementById("btn-flowchart-menu").addEventListener("click", () => {
+    if (!globalState.trueRouteUnlocked) return;
+    openFlowchart("title");
   });
 
   document.getElementById("btn-restart").addEventListener("click", () => {
     location.reload();
   });
 
+  document.getElementById("btn-end-title").addEventListener("click", () => {
+    showScreen("title");
+  });
+
+  document.getElementById("btn-end-flowchart").addEventListener("click", () => {
+    openFlowchart("end");
+  });
+
+  // ---------------- 重置：开始新游戏 ----------------
+  function resetGameState() {
+    Object.assign(flags, {
+      hasBattery: false, powerOn: false, batteryInstalled: false,
+      hasNote1: false, hasNote2: false, hasBadge: false,
+      clockSolved: false, solved: false, sawFace: false, canSave: false,
+    });
+    Object.keys(clickCounts).forEach((k) => (clickCounts[k] = 0));
+    Object.keys(investigated).forEach((k) => (investigated[k] = false));
+    clockFails = 0; clockHour = 2; clockMin = 14; currentView = "floor";
+    countdownSeconds = 19 * 60 + 37;
+    accumulatedSeconds = 0;
+    playStartTimestamp = Date.now();
+    updateSaveIconVisibility();
+  }
+
+  // ---------------- 主界面按钮状态 ----------------
+  function refreshMainMenuButtons() {
+    document.getElementById("btn-continue").disabled = latestSlotIndex() < 0;
+    document.getElementById("btn-flowchart-menu").disabled = !globalState.trueRouteUnlocked;
+  }
+
+  // ---------------- 水渍立绘弹窗 ----------------
+  function openPortrait() {
+    showScreen("portrait");
+  }
+  document.getElementById("btn-portrait-save").addEventListener("click", () => {
+    openSaves("save", "game");
+  });
+  document.getElementById("btn-portrait-flowchart").addEventListener("click", () => {
+    openFlowchart("game");
+  });
+  document.getElementById("btn-portrait-close").addEventListener("click", () => {
+    showScreen("game");
+    resumeFreeRoam();
+  });
+
+  // ---------------- 总机菜单（游戏内系统入口） ----------------
+  document.getElementById("btn-system").addEventListener("click", () => {
+    showScreen("sysmenu");
+  });
+  document.getElementById("btn-sys-save").addEventListener("click", () => {
+    openSaves("save", "game");
+  });
+  document.getElementById("btn-sys-load").addEventListener("click", () => {
+    openSaves("load", "game");
+  });
+  document.getElementById("btn-sys-flowchart").addEventListener("click", () => {
+    openFlowchart("game");
+  });
+  document.getElementById("btn-sys-title").addEventListener("click", () => {
+    showScreen("title");
+  });
+  document.getElementById("btn-sys-close").addEventListener("click", () => {
+    showScreen("game");
+    resumeFreeRoam();
+  });
+
+  // ---------------- 存档 / 读档界面 ----------------
+  let savesMode = "load"; // "save" | "load"
+  let savesBackTarget = "title";
+
+  function openSaves(mode, backTarget) {
+    savesMode = mode;
+    savesBackTarget = backTarget;
+    document.getElementById("saves-title").textContent = mode === "save" ? "保存进度" : "读取存档";
+    renderSavesGrid();
+    showScreen("saves");
+  }
+
+  function formatSavedAt(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, "0");
+    return pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  function renderSavesGrid() {
+    const grid = document.getElementById("saves-grid");
+    grid.innerHTML = "";
+    saveSlots.forEach((slot, i) => {
+      const el = document.createElement("div");
+      el.className = "save-slot" + (slot ? "" : " empty");
+      if (!slot) {
+        el.textContent = savesMode === "save" ? "（空槛 · 点击保存）" : "（空）";
+      } else {
+        const rescuedText = slot.rescued && slot.rescued.length ? slot.rescued.join("、") : "无";
+        el.innerHTML =
+          '<div class="slot-index">槽位 ' + (i + 1) + "</div>" +
+          '<div class="slot-progress">' + slot.progressName + "</div>" +
+          '<div class="slot-meta">用时 ' + formatDuration(slot.elapsedSeconds) + "</div>" +
+          '<div class="slot-meta">已救：' + rescuedText + "</div>" +
+          '<div class="slot-meta">' + formatSavedAt(slot.savedAt) + "</div>";
+      }
+      el.addEventListener("click", () => onSaveSlotClick(i));
+      grid.appendChild(el);
+    });
+  }
+
+  function onSaveSlotClick(i) {
+    if (savesMode === "save") {
+      if (saveSlots[i] && !window.confirm("槽位 " + (i + 1) + " 已有存档，覆盖吗？")) return;
+      saveSlots[i] = buildSaveData();
+      persistSaveSlots();
+      renderSavesGrid();
+    } else {
+      const slot = saveSlots[i];
+      if (!slot) return;
+      applySaveData(slot);
+    }
+  }
+
+  document.getElementById("btn-saves-back").addEventListener("click", () => {
+    showScreen(savesBackTarget);
+    if (savesBackTarget === "game") resumeFreeRoam();
+  });
+
+  // ---------------- 剧情流程图 ----------------
+  let flowchartBackTarget = "title";
+
+  function openFlowchart(backTarget) {
+    flowchartBackTarget = backTarget;
+    renderFlowchart();
+    showScreen("flowchart");
+  }
+
+  const DOOR_FLOW_INFO = {
+    tea: "茶水间（闸 · 舌）",
+    server: "机房（闸 · 耳）",
+    dark: "黑暗房（闸 · 眼）",
+  };
+
+  function renderFlowchart() {
+    const body = document.getElementById("flowchart-body");
+    body.innerHTML = "";
+
+    const startNode = document.createElement("div");
+    startNode.className = "flow-node cleared";
+    startNode.textContent = "序幕 · 单人关押室苏醒";
+    body.appendChild(startNode);
+
+    const arrow1 = document.createElement("div");
+    arrow1.className = "flow-arrow";
+    arrow1.textContent = "↓ 解谜通关";
+    body.appendChild(arrow1);
+
+    const branchWrap = document.createElement("div");
+    branchWrap.className = "flow-branches";
+    ["tea", "server", "dark"].forEach((key) => {
+      const cleared = globalState.endingsCleared.includes(key);
+      const node = document.createElement("div");
+      node.className = "flow-node" + (cleared ? " cleared jumpable" : " locked");
+      node.textContent = DOOR_FLOW_INFO[key] + (cleared ? "" : "（未达成）");
+      if (cleared) node.addEventListener("click", () => jumpToDoorSelection());
+      branchWrap.appendChild(node);
+    });
+    body.appendChild(branchWrap);
+
+    const lockNode = document.createElement("div");
+    if (globalState.trueRouteUnlocked) {
+      const cleared = globalState.endingsCleared.includes("true");
+      lockNode.className = "flow-node" + (cleared ? " cleared jumpable" : " jumpable");
+      lockNode.textContent = "隐藏分支 · 差一分【05：20】" + (cleared ? "" : "（可尝试）");
+      lockNode.addEventListener("click", () => jumpToHiddenLockAttempt());
+    } else {
+      lockNode.className = "flow-node locked";
+      lockNode.textContent = "？？？（隐藏剧情锁 · 通关任意结局后解锁）";
+    }
+    body.appendChild(lockNode);
+  }
+
+  document.getElementById("btn-flowchart-back").addEventListener("click", () => {
+    showScreen(flowchartBackTarget);
+    if (flowchartBackTarget === "game") resumeFreeRoam();
+  });
+
+  // ---------------- 流程图跳转：快进到三门抉择 / 隐藏锁尝试 ----------------
+  function fastForwardExploration() {
+    flags.hasBattery = true;
+    flags.powerOn = true;
+    flags.batteryInstalled = true;
+    flags.hasNote1 = true;
+    flags.hasNote2 = true;
+    flags.hasBadge = true;
+    flags.sawFace = true;
+    flags.canSave = true;
+    REQUIRED.forEach((id) => (investigated[id] = true));
+    updateSaveIconVisibility();
+  }
+
+  function jumpToDoorSelection() {
+    fastForwardExploration();
+    flags.clockSolved = true;
+    flags.solved = false;
+    showScreen("game");
+    buildHotspots();
+    updateStageVisual();
+    updateInventory();
+    playScene7();
+  }
+
+  function jumpToHiddenLockAttempt() {
+    fastForwardExploration();
+    flags.clockSolved = false;
+    flags.solved = false;
+    showScreen("game");
+    buildHotspots();
+    updateStageVisual();
+    updateInventory();
+    playLines(
+      [
+        L_narr("[流程图跳转 · 场景回到门旁的时钟前，线索已经齐全。]"),
+        L_think("橘鏡", null, "这次……试试那个数字？"),
+      ],
+      () => {
+        clockHour = 2; clockMin = 14; clockFails = 0;
+        document.getElementById("clock-hint").textContent = "";
+        updateClockDisplay();
+        showScreen("clock");
+      }
+    );
+  }
+
   // ---------------- 初始 ----------------
+  refreshMainMenuButtons();
   showScreen("title");
 })();

@@ -8,13 +8,18 @@
 </head>
 <body>
 
-<!-- 标题画面 -->
+<!-- 标题画面 / 主界面 -->
 <div id="screen-title" class="screen active">
   <div class="title-box">
     <h1>怪谈笔记 999</h1>
     <h2>序幕 · 入职</h2>
     <p class="title-tip">（占位版 · 文字 + 色块道具 · 约 20 分钟）</p>
-    <button id="btn-start">开始游戏</button>
+    <div class="menu-buttons">
+      <button id="btn-start">新游戏</button>
+      <button id="btn-continue">继续</button>
+      <button id="btn-load-menu">存档管理</button>
+      <button id="btn-flowchart-menu">剧情流程图</button>
+    </div>
   </div>
 </div>
 
@@ -24,6 +29,7 @@
   <!-- 顶部状态条 -->
   <div id="topbar">
     <div id="room-name">序幕 · 单人关押室</div>
+    <button id="btn-system" style="display:none;">☎ 总机</button>
     <div id="countdown">倒计时 <span id="countdown-time">19:37</span></div>
   </div>
 
@@ -86,15 +92,73 @@
   </div>
 </div>
 
+<!-- 水渍立绘弹窗：首次看清自己的脸 -->
+<div id="screen-portrait" class="screen">
+  <div class="modal-box portrait-box">
+    <h3>水渍 · 倒影</h3>
+    <div class="portrait-frame">
+      <div class="portrait-placeholder" id="portrait-img">橘鏡</div>
+    </div>
+    <p class="portrait-caption">从这一刻起，可以保存进度，也能查看故事的分支流程图。</p>
+    <div class="modal-buttons">
+      <button id="btn-portrait-save">保存进度</button>
+      <button id="btn-portrait-flowchart">查看流程图</button>
+      <button id="btn-portrait-close">继续探索</button>
+    </div>
+  </div>
+</div>
+
+<!-- 总机菜单：游戏内系统入口 -->
+<div id="screen-sysmenu" class="screen">
+  <div class="modal-box">
+    <h3>☎ 总机</h3>
+    <div class="menu-buttons">
+      <button id="btn-sys-save">保存进度</button>
+      <button id="btn-sys-load">读取存档</button>
+      <button id="btn-sys-flowchart">剧情流程图</button>
+      <button id="btn-sys-title">返回主界面</button>
+      <button id="btn-sys-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 存档 / 读档界面 -->
+<div id="screen-saves" class="screen">
+  <div class="modal-box saves-box">
+    <h3 id="saves-title">存档</h3>
+    <div id="saves-grid" class="saves-grid"></div>
+    <div class="modal-buttons">
+      <button id="btn-saves-back">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- 剧情流程图 -->
+<div id="screen-flowchart" class="screen">
+  <div class="modal-box flowchart-box">
+    <h3>故事流程图</h3>
+    <div id="flowchart-body" class="flowchart-body"></div>
+    <div class="modal-buttons">
+      <button id="btn-flowchart-back">返回</button>
+    </div>
+  </div>
+</div>
+
 <!-- 结局画面 -->
 <div id="screen-end" class="screen">
   <div class="title-box">
     <h1>序幕 · 结束</h1>
     <p id="end-text"></p>
-    <button id="btn-restart">重新开始</button>
+    <p id="end-lock-notice" style="display:none; color:#e8a33b;">【剧情锁已解锁】通关档案室里，多了一行新的记录……</p>
+    <div class="menu-buttons">
+      <button id="btn-restart">重新开始</button>
+      <button id="btn-end-flowchart" style="display:none;">查看流程图</button>
+      <button id="btn-end-title">返回主界面</button>
+    </div>
   </div>
 </div>
 
 <script src="game.js"></script>
 </body>
 </html>
+
