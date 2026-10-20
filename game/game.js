@@ -23,6 +23,7 @@
     sysmenu: document.getElementById("screen-sysmenu"),
     saves: document.getElementById("screen-saves"),
     flowchart: document.getElementById("screen-flowchart"),
+    node: document.getElementById("screen-node"),
   };
   const stageEl = document.getElementById("stage");
   const stageLabelEl = document.getElementById("stage-label");
@@ -119,17 +120,24 @@
   // ---------------- 持久化：全局解锁（跨存档 / 跨周目） ----------------
   const GLOBAL_KEY = "g999_global_v1";
   const SAVES_KEY = "g999_saves_v1";
-  const SAVE_SLOT_COUNT = 9;
+  const SAVE_SLOT_COUNT = 30;
 
+  function defaultGlobalState() {
+    // visited：流程图已到达的节点；locks：已获得的剧情锁钥匙；lastNode：流程图上的当前位置标记
+    return { trueRouteUnlocked: false, endingsCleared: [], visited: [], locks: [], lastNode: null };
+  }
   function loadGlobalState() {
+    const g = defaultGlobalState();
     try {
       const raw = localStorage.getItem(GLOBAL_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return Object.assign({ trueRouteUnlocked: false, endingsCleared: [] }, parsed);
-      }
+      if (raw) Object.assign(g, JSON.parse(raw));
     } catch (e) {}
-    return { trueRouteUnlocked: false, endingsCleared: [] };
+    // 旧版本只记录了结局：补齐流程图的到达记录
+    if (g.endingsCleared.length && !g.visited.length) {
+      g.visited.push("e_prologue", "n_door");
+      if (g.endingsCleared.includes("true")) g.visited.push("n_hidden");
+    }
+    return g;
   }
   function saveGlobalState() {
     try { localStorage.setItem(GLOBAL_KEY, JSON.stringify(globalState)); } catch (e) {}
@@ -141,7 +149,11 @@
       const raw = localStorage.getItem(SAVES_KEY);
       if (raw) {
         const arr = JSON.parse(raw);
-        if (Array.isArray(arr) && arr.length === SAVE_SLOT_COUNT) return arr;
+        if (Array.isArray(arr)) {
+          // 旧版本只有 9 个槽位：补齐到 30 个，保留原有存档
+          while (arr.length < SAVE_SLOT_COUNT) arr.push(null);
+          return arr.slice(0, SAVE_SLOT_COUNT);
+        }
       }
     } catch (e) {}
     return new Array(SAVE_SLOT_COUNT).fill(null);
@@ -987,6 +999,7 @@
 
   // ---------------- 场景七：选门 ----------------
   function playScene7() {
+    if (window.Flow) window.Flow.visit("n_door");
     showScreen("game");
     playLines(
       [
@@ -1067,6 +1080,10 @@
       globalState.endingsCleared.push(key);
     }
     globalState.trueRouteUnlocked = true; // 完成任意一个结局（含 BE）即揭示隐藏剧情锁
+    if (window.Flow) {
+      window.Flow.visit("n_door");
+      if (key === "true") window.Flow.visit("n_hidden");
+    }
     saveGlobalState();
 
     document.getElementById("end-text").textContent = ENDING_TEXTS[key];
@@ -1075,7 +1092,7 @@
       lockNoticeEl.style.display = !wasUnlocked ? "block" : "none";
     }
     const flowBtn = document.getElementById("btn-end-flowchart");
-    if (flowBtn) flowBtn.style.display = flags.canSave ? "inline-block" : "none";
+    if (flowBtn) flowBtn.style.display = "inline-block";
     showScreen("end");
   }
 
@@ -1214,8 +1231,7 @@
   }
 
   document.getElementById("btn-start").addEventListener("click", () => {
-    resetGameState();
-    playIntro();
+    startNewGame();
   });
 
   document.getElementById("btn-continue").addEventListener("click", () => {
@@ -1229,7 +1245,6 @@
   });
 
   document.getElementById("btn-flowchart-menu").addEventListener("click", () => {
-    if (!globalState.trueRouteUnlocked) return;
     openFlowchart("title");
   });
 
@@ -1265,7 +1280,7 @@
   // ---------------- 主界面按钮状态 ----------------
   function refreshMainMenuButtons() {
     document.getElementById("btn-continue").disabled = latestSlotIndex() < 0;
-    document.getElementById("btn-flowchart-menu").disabled = !globalState.trueRouteUnlocked;
+    document.getElementById("btn-flowchart-menu").disabled = false;
   }
 
   // ---------------- 水渍立绘弹窗 ----------------
@@ -1304,122 +1319,110 @@
     resumeFreeRoam();
   });
 
-  // ---------------- 存档 / 读档界面 ----------------
+  // ---------------- 存档 / 读档界面（参考《极限脱出》的 save data 屏） ----------------
   let savesMode = "load"; // "save" | "load"
   let savesBackTarget = "title";
+  let svCurrent = 0; // 当前展示的存档序号（0~29）
 
   function openSaves(mode, backTarget) {
     savesMode = mode;
     savesBackTarget = backTarget;
-    document.getElementById("saves-title").textContent = mode === "save" ? "保存进度" : "读取存档";
-    renderSavesGrid();
+    svCurrent = latestSlotIndex() >= 0 ? latestSlotIndex() : 0;
     showScreen("saves");
+    renderSavesUI();
   }
 
   function formatSavedAt(ts) {
     const d = new Date(ts);
     const pad = (n) => String(n).padStart(2, "0");
-    return pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    return d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
 
-  function renderSavesGrid() {
-    const grid = document.getElementById("saves-grid");
-    grid.innerHTML = "";
-    saveSlots.forEach((slot, i) => {
-      const el = document.createElement("div");
-      el.className = "save-slot" + (slot ? "" : " empty");
-      if (!slot) {
-        el.textContent = savesMode === "save" ? "（空槛 · 点击保存）" : "（空）";
-      } else {
-        const rescuedText = slot.rescued && slot.rescued.length ? slot.rescued.join("、") : "无";
-        el.innerHTML =
-          '<div class="slot-index">槽位 ' + (i + 1) + "</div>" +
-          '<div class="slot-progress">' + slot.progressName + "</div>" +
-          '<div class="slot-meta">用时 ' + formatDuration(slot.elapsedSeconds) + "</div>" +
-          '<div class="slot-meta">已救：' + rescuedText + "</div>" +
-          '<div class="slot-meta">' + formatSavedAt(slot.savedAt) + "</div>";
+  function renderSavesUI() {
+    const strip = document.getElementById("sv-strip");
+    const count = document.getElementById("sv-count");
+    const main = document.getElementById("sv-main");
+    const mainText = document.getElementById("sv-main-text");
+    const info = document.getElementById("sv-info-body");
+    const delBtn = document.getElementById("sv-del");
+    const title = document.getElementById("sv-title");
+
+    title.textContent = savesMode === "save" ? "SAVE" : "LOAD";
+    count.textContent = String(svCurrent + 1).padStart(2, "0") + "/" + SAVE_SLOT_COUNT;
+
+    // 顶部缩略条（5 个框：前 2 / 当前 / 后 2）
+    strip.innerHTML = "";
+    [-2, -1, 0, 1, 2].forEach((offset) => {
+      const idx = svCurrent + offset;
+      const slot = idx >= 0 && idx < SAVE_SLOT_COUNT ? saveSlots[idx] : null;
+      const div = document.createElement("div");
+      div.className = "sv-strip-cell" + (offset === 0 ? " current" : "") + (slot ? "" : " empty");
+      if (idx >= 0 && idx < SAVE_SLOT_COUNT) {
+        div.textContent = String(idx + 1).padStart(2, "0");
+        if (slot) div.style.background = slot.color || "#4a6fd4";
       }
-      el.addEventListener("click", () => onSaveSlotClick(i));
-      grid.appendChild(el);
+      strip.appendChild(div);
     });
+
+    const slot = saveSlots[svCurrent];
+    if (!slot) {
+      main.classList.add("empty");
+      mainText.textContent = savesMode === "save" ? "Click to Save" : "(Empty)";
+      info.innerHTML = "";
+      delBtn.disabled = true;
+      delBtn.textContent = "删除此存档";
+      return;
+    }
+
+    main.classList.remove("empty");
+    mainText.textContent = savesMode === "save" ? "Overwrite?" : "Load";
+    info.innerHTML =
+      '<div class="sv-row"><b>' + slot.progressName + "</b></div>" +
+      '<div class="sv-row">已用时间：' + formatDuration(slot.elapsedSeconds) + "</div>" +
+      '<div class="sv-row">保存时间：' + formatSavedAt(slot.savedAt) + "</div>";
+    delBtn.disabled = false;
+    delBtn.textContent = "删除此存档";
   }
 
-  function onSaveSlotClick(i) {
+  document.getElementById("sv-prev").addEventListener("click", () => {
+    svCurrent = (svCurrent - 1 + SAVE_SLOT_COUNT) % SAVE_SLOT_COUNT;
+    renderSavesUI();
+  });
+  document.getElementById("sv-next").addEventListener("click", () => {
+    svCurrent = (svCurrent + 1) % SAVE_SLOT_COUNT;
+    renderSavesUI();
+  });
+  document.getElementById("sv-main").addEventListener("click", () => {
     if (savesMode === "save") {
-      if (saveSlots[i] && !window.confirm("槽位 " + (i + 1) + " 已有存档，覆盖吗？")) return;
-      saveSlots[i] = buildSaveData();
+      if (saveSlots[svCurrent] && !window.confirm("槽位 " + (svCurrent + 1) + " 已有存档，覆盖吗？")) return;
+      const data = buildSaveData();
+      data.color = ["#4a6fd4", "#9d7bd8", "#e8563a", "#4ade80"][svCurrent % 4];
+      saveSlots[svCurrent] = data;
       persistSaveSlots();
-      renderSavesGrid();
+      renderSavesUI();
     } else {
-      const slot = saveSlots[i];
+      const slot = saveSlots[svCurrent];
       if (!slot) return;
       applySaveData(slot);
     }
-  }
-
+  });
+  document.getElementById("sv-del").addEventListener("click", () => {
+    if (!saveSlots[svCurrent]) return;
+    if (!window.confirm("确认删除槽位 " + (svCurrent + 1) + " 的存档？")) return;
+    saveSlots[svCurrent] = null;
+    persistSaveSlots();
+    renderSavesUI();
+  });
   document.getElementById("btn-saves-back").addEventListener("click", () => {
     showScreen(savesBackTarget);
     if (savesBackTarget === "game") resumeFreeRoam();
   });
 
   // ---------------- 剧情流程图 ----------------
-  let flowchartBackTarget = "title";
-
+  // 流程图渲染与占位节点播放器在 flow.js 里
   function openFlowchart(backTarget) {
-    flowchartBackTarget = backTarget;
-    renderFlowchart();
-    showScreen("flowchart");
+    window.Flow.open(backTarget);
   }
-
-  const DOOR_FLOW_INFO = {
-    tea: "茶水间（闸 · 舌）",
-    server: "机房（闸 · 耳）",
-    dark: "黑暗房（闸 · 眼）",
-  };
-
-  function renderFlowchart() {
-    const body = document.getElementById("flowchart-body");
-    body.innerHTML = "";
-
-    const startNode = document.createElement("div");
-    startNode.className = "flow-node cleared";
-    startNode.textContent = "序幕 · 单人关押室苏醒";
-    body.appendChild(startNode);
-
-    const arrow1 = document.createElement("div");
-    arrow1.className = "flow-arrow";
-    arrow1.textContent = "↓ 解谜通关";
-    body.appendChild(arrow1);
-
-    const branchWrap = document.createElement("div");
-    branchWrap.className = "flow-branches";
-    ["tea", "server", "dark"].forEach((key) => {
-      const cleared = globalState.endingsCleared.includes(key);
-      const node = document.createElement("div");
-      node.className = "flow-node" + (cleared ? " cleared jumpable" : " locked");
-      node.textContent = DOOR_FLOW_INFO[key] + (cleared ? "" : "（未达成）");
-      if (cleared) node.addEventListener("click", () => jumpToDoorSelection());
-      branchWrap.appendChild(node);
-    });
-    body.appendChild(branchWrap);
-
-    const lockNode = document.createElement("div");
-    if (globalState.trueRouteUnlocked) {
-      const cleared = globalState.endingsCleared.includes("true");
-      lockNode.className = "flow-node" + (cleared ? " cleared jumpable" : " jumpable");
-      lockNode.textContent = "隐藏分支 · 差一分【05：20】" + (cleared ? "" : "（可尝试）");
-      lockNode.addEventListener("click", () => jumpToHiddenLockAttempt());
-    } else {
-      lockNode.className = "flow-node locked";
-      lockNode.textContent = "？？？（隐藏剧情锁 · 通关任意结局后解锁）";
-    }
-    body.appendChild(lockNode);
-  }
-
-  document.getElementById("btn-flowchart-back").addEventListener("click", () => {
-    showScreen(flowchartBackTarget);
-    if (flowchartBackTarget === "game") resumeFreeRoam();
-  });
 
   // ---------------- 流程图跳转：快进到三门抉择 / 隐藏锁尝试 ----------------
   function fastForwardExploration() {
@@ -1467,6 +1470,23 @@
       }
     );
   }
+
+  // ---------------- 对外接口：供 flow.js 调用 ----------------
+  function startNewGame() {
+    resetGameState();
+    if (window.Flow) window.Flow.visit("e_prologue");
+    playIntro();
+  }
+  window.G999 = {
+    globalState,
+    saveGlobalState,
+    showScreen,
+    resumeFreeRoam,
+    startNewGame,
+    jumpToDoorSelection,
+    jumpToHiddenLockAttempt,
+    openSaves,
+  };
 
   // ---------------- 初始 ----------------
   refreshMainMenuButtons();

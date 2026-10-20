@@ -134,24 +134,60 @@
   </div>
 </div>
 
-<!-- 存档 / 读档界面 -->
+<!-- 存档 / 读档界面（参考《极限脱出》的 save data 屏：上方缩略条、中间大按钮、右下信息板） -->
 <div id="screen-saves" class="screen">
-  <div class="modal-box saves-box">
-    <h3 id="saves-title">存档</h3>
-    <div id="saves-grid" class="saves-grid"></div>
-    <div class="modal-buttons">
-      <button id="btn-saves-back">返回</button>
-    </div>
+  <div id="sv-title">SAVE</div>
+  <div id="sv-strip"></div>
+  <button id="sv-prev" class="sv-arrow" aria-label="上一个存档">◀</button>
+  <div id="sv-main" role="button" tabindex="0"><span id="sv-main-text">Click to Save</span></div>
+  <button id="sv-next" class="sv-arrow" aria-label="下一个存档">▶</button>
+  <div id="sv-count">01/30</div>
+  <div id="sv-info">
+    <div id="sv-info-head">save data</div>
+    <div id="sv-info-body"></div>
+    <button id="sv-del">删除此存档</button>
   </div>
+  <button id="btn-saves-back" class="back-btn">返回<span>back</span></button>
 </div>
 
-<!-- 剧情流程图 -->
+<!-- 剧情流程图（参考《极限脱出》：NOVEL / ESC 节点树 + 钥匙 / 锁徽章） -->
 <div id="screen-flowchart" class="screen">
-  <div class="modal-box flowchart-box">
-    <h3>故事流程图</h3>
-    <div id="flowchart-body" class="flowchart-body"></div>
-    <div class="modal-buttons">
-      <button id="btn-flowchart-back">返回</button>
+  <div id="fc-legend">
+    <div class="fc-legend-row"><span class="fc-badge no">🔑</span><span class="fc-badge lock no">🔒</span><b>Locked</b><i>未解开</i></div>
+    <div class="fc-legend-row"><span class="fc-badge ok">🔑</span><span class="fc-badge lock ok">🔒</span><b>Unlocked</b><i>已解开</i></div>
+  </div>
+  <div id="fc-viewport"><div id="fc-canvas"></div></div>
+  <div id="fc-info">
+    <div class="fc-info-head"><span id="fc-info-type" class="fc-info-type">NOVEL</span><span id="fc-info-title"></span></div>
+    <div id="fc-info-desc"></div>
+    <button id="fc-enter">进入</button>
+  </div>
+  <div id="fc-tools">
+    <button id="fc-debug">测试：全部解锁（关）</button>
+    <button id="fc-reset">清空流程图进度</button>
+  </div>
+  <button id="btn-flowchart-back" class="back-btn">返回<span>back</span></button>
+</div>
+
+<!-- 占位关卡 / 流程节点播放器：用于测试流程图的解锁、剧情锁与连线 -->
+<div id="screen-node" class="screen">
+  <div id="node-panel">
+    <div id="node-topbar">
+      <div id="node-name"></div>
+      <span id="node-badge"></span>
+      <button id="btn-node-hint">测试提示</button>
+      <button id="btn-node-flow">流程图</button>
+    </div>
+    <div id="node-stage">
+      <div id="node-stage-title"></div>
+      <div id="node-hotspots"></div>
+      <div id="node-choices"></div>
+      <div id="node-lock"></div>
+    </div>
+    <div id="node-dialogue">
+      <div id="nd-speaker"></div>
+      <div id="nd-text"></div>
+      <div id="nd-next">▼ 点击继续</div>
     </div>
   </div>
 </div>
@@ -164,7 +200,7 @@
     <p id="end-lock-notice" style="display:none; color:#e8a33b;">【剧情锁已解锁】通关档案室里，多了一行新的记录……</p>
     <div class="menu-buttons">
       <button id="btn-restart">重新开始</button>
-      <button id="btn-end-flowchart" style="display:none;">查看流程图</button>
+      <button id="btn-end-flowchart">查看流程图</button>
       <button id="btn-end-title">返回主界面</button>
     </div>
   </div>
@@ -172,6 +208,7 @@
 
 <script src="layout.js"></script>
 <script src="game.js"></script>
+<script src="flow.js"></script>
 <script type="module">
   import "./room3d.js";
   const el = document.getElementById("room3d");
