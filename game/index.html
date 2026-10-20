@@ -23,30 +23,42 @@
   </div>
 </div>
 
-<!-- 游戏主画面 -->
+<!-- 游戏主画面：左 = 房间全局模型（three.js），右 = 4:3 游玩界面 + 4:1 对话框 -->
 <div id="screen-game" class="screen">
 
-  <!-- 顶部状态条 -->
-  <div id="topbar">
-    <div id="room-name">序幕 · 单人关押室</div>
-    <button id="btn-system" style="display:none;">☎ 总机</button>
-    <div id="countdown">倒计时 <span id="countdown-time">19:37</span></div>
+  <!-- 左：房间全局模型 -->
+  <div id="room-panel">
+    <div id="room3d"></div>
+    <div id="room-caption"></div>
+    <div id="room-hint">拖动旋转 · 滚轮缩放 · 双击复位</div>
   </div>
 
-  <!-- 场景舞台 -->
-  <div id="stage" class="stage-dark">
-    <div id="stage-label"></div>
-    <div id="hotspots"></div>
-  </div>
+  <!-- 右：游玩区 -->
+  <div id="play-panel">
 
-  <!-- 物品栏 -->
-  <div id="inventory"></div>
+    <!-- 顶部状态条 -->
+    <div id="topbar">
+      <div id="room-name">序幕 · 单人关押室</div>
+      <button id="btn-system" style="display:none;">☎ 总机</button>
+      <div id="countdown">倒计时 <span id="countdown-time">19:37</span></div>
+    </div>
 
-  <!-- 对话 / 旁白框 -->
-  <div id="dialogue-box">
-    <div id="dlg-speaker"></div>
-    <div id="dlg-text"></div>
-    <div id="dlg-next">▼ 点击继续</div>
+    <!-- 场景舞台（4:3） -->
+    <div id="stage" class="stage-dark">
+      <div id="stage-label"></div>
+      <div id="hotspots"></div>
+    </div>
+
+    <!-- 对话 / 旁白框（4:1，紧贴舞台下方） -->
+    <div id="dialogue-box">
+      <div id="dlg-speaker"></div>
+      <div id="dlg-text"></div>
+      <div id="dlg-next">▼ 点击继续</div>
+    </div>
+
+    <!-- 物品栏 -->
+    <div id="inventory"></div>
+
   </div>
 
 </div>
@@ -159,6 +171,18 @@
 </div>
 
 <script src="game.js"></script>
+<script type="module">
+  import "./room3d.js";
+  const el = document.getElementById("room3d");
+  try {
+    window.Room3D.init(el);
+    window.__room3dReady = true;
+    window.dispatchEvent(new Event("room3d-init"));
+  } catch (e) {
+    el.innerHTML = '<div class="room-fallback">当前环境不支持 3D 预览（WebGL 不可用）</div>';
+    console.warn("Room3D init failed:", e);
+  }
+</script>
 </body>
 </html>
 

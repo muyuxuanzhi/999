@@ -38,7 +38,37 @@
     Object.values(screens).forEach((s) => s.classList.remove("active"));
     screens[name].classList.add("active");
     if (name === "title") refreshMainMenuButtons();
+    if (name === "game") fitHotspots();
   }
+
+  // 热点按 800×600 设计坐标布局，随 4:3 舞台实际宽度等比缩放
+  function fitHotspots() {
+    const w = stageEl.clientWidth;
+    if (!w) return;
+    hotspotsEl.style.transform = "scale(" + w / 800 + ")";
+  }
+  if (window.ResizeObserver) new ResizeObserver(fitHotspots).observe(stageEl);
+  window.addEventListener("resize", fitHotspots);
+
+  // 同步状态到左侧 3D 房间模型（room3d.js 为模块脚本，加载稍晚，所以做存在性判断）
+  function syncRoom3D() {
+    const R = window.Room3D;
+    if (!R || !window.__room3dReady) return;
+    R.setLit(flags.batteryInstalled);
+    R.setItemState("badge", { hidden: flags.hasBadge });
+    R.setItemState("panel", { glow: flags.clockSolved });
+    R.setItemState("painting", flags.hasNote2 ? { pos: [-5.0, 1.1, -5.3] } : { pos: [-3.2, 3.6, -5.8] });
+    if (syncRoom3D.lastView !== currentView) {
+      syncRoom3D.lastView = currentView;
+      R.setView(currentView);
+    }
+    const cap = document.getElementById("room-caption");
+    if (cap) {
+      cap.textContent =
+        (flags.batteryInstalled ? "明亮" : "黑暗") + " · 当前视角：" + VIEW_NAMES[currentView];
+    }
+  }
+  window.addEventListener("room3d-init", syncRoom3D);
 
   // ---------------- 游戏状态 ----------------
   const flags = {
@@ -306,6 +336,8 @@
       const guideRight = flags.clockSolved && !flags.solved && el.dataset.to === "right";
       el.classList.toggle("nav-guide", guideRight);
     });
+
+    syncRoom3D();
   }
 
   // ---------------- 物品栏 ----------------
@@ -1193,6 +1225,7 @@
     accumulatedSeconds = 0;
     playStartTimestamp = Date.now();
     updateSaveIconVisibility();
+    syncRoom3D();
   }
 
   // ---------------- 主界面按钮状态 ----------------
