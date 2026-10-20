@@ -241,6 +241,7 @@ html, body {
 .c-countdown{ background: #d13b2b; color:#fff; }
 .c-door     { background: #3b2a1a; color:#fff; }
 .c-panel    { background: #4ade80; }
+.c-bookshelf{ background: #9a6b2f; }
 
 #inventory {
   flex: 0 0 auto;

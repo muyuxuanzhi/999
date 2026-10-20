@@ -7,9 +7,11 @@
 
 import * as THREE from "./lib/three.module.min.js";
 
-const ROOM_W = 12;
-const ROOM_D = 12;
-const ROOM_H = 7;
+// 物品布局来自 layout.js（与右侧 4:3 舞台的热点共用同一份数据）
+const LAYOUT = window.ROOM_LAYOUT;
+const ROOM_W = LAYOUT.W;
+const ROOM_D = LAYOUT.D;
+const ROOM_H = LAYOUT.H;
 
 // 各游戏视角对应的镜头位置与注视点
 const VIEW_POSES = {
@@ -20,19 +22,8 @@ const VIEW_POSES = {
   right: { pos: [-17, 3.6, 0], look: [ROOM_W / 2, 3.2, 0] },
 };
 
-// 物品定义：id 与游戏热点 id 保持一致
-const ITEMS = [
-  { id: "countdown", label: "倒计时屏", color: 0xd13b2b, size: [2.6, 0.9, 0.25], pos: [0, 6.0, -ROOM_D / 2 + 0.2], emissive: true, alwaysOn: true },
-  { id: "clock", label: "时钟", color: 0x4a6fd4, shape: "cyl", size: [0.9, 0.9, 0.25], pos: [2.6, 3.6, -ROOM_D / 2 + 0.2] },
-  { id: "painting", label: "画", color: 0x9d7bd8, size: [1.8, 2.2, 0.2], pos: [-3.2, 3.6, -ROOM_D / 2 + 0.2] },
-  { id: "switch", label: "灯开关", color: 0xe8563a, size: [0.25, 0.9, 0.6], pos: [-ROOM_W / 2 + 0.15, 3.0, 0.5] },
-  { id: "door", label: "门", color: 0x3b2a1a, size: [0.25, 4.2, 2.0], pos: [ROOM_W / 2 - 0.15, 2.1, -2.2] },
-  { id: "panel", label: "电子面板", color: 0x4ade80, size: [0.25, 1.4, 1.2], pos: [ROOM_W / 2 - 0.15, 3.2, 1.6] },
-  { id: "fusebox", label: "配电盒", color: 0x6b7280, size: [1.4, 1.4, 1.0], pos: [-3.8, 0.7, 2.6] },
-  { id: "desk", label: "桌子", color: 0xa67b5b, size: [3.2, 1.1, 1.5], pos: [0.4, 0.55, 0], labelOffset: [-1.0, 0.1] },
-  { id: "badge", label: "工牌", color: 0xf59e0b, size: [0.6, 0.06, 0.4], pos: [0.9, 1.14, 0.1], labelOffset: [0.9, 0.9] },
-  { id: "puddle", label: "水渍", color: 0x2ec4b6, shape: "disc", size: [1.5, 0.03, 1.0], pos: [3.2, 0.03, 2.8] },
-];
+// 物品定义：id 与游戏热点 id 保持一致，数据见 layout.js
+const ITEMS = LAYOUT.items;
 
 let renderer, scene, camera, container;
 let wallMats = [], lineMats = [];

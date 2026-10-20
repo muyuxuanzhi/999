@@ -57,7 +57,8 @@
     R.setLit(flags.batteryInstalled);
     R.setItemState("badge", { hidden: flags.hasBadge });
     R.setItemState("panel", { glow: flags.clockSolved });
-    R.setItemState("painting", flags.hasNote2 ? { pos: [-5.0, 1.1, -5.3] } : { pos: [-3.2, 3.6, -5.8] });
+    const paintDef = window.ROOM_LAYOUT.byId.painting;
+    R.setItemState("painting", { pos: flags.hasNote2 ? paintDef.fallenPos : paintDef.pos });
     if (syncRoom3D.lastView !== currentView) {
       syncRoom3D.lastView = currentView;
       R.setView(currentView);
@@ -87,18 +88,20 @@
   const clickCounts = {
     switch: 0, fusebox: 0, desk: 0, clock: 0, badge: 0,
     painting: 0, puddle: 0, countdown: 0, door: 0, panel: 0,
-    note2: 0, // 纸条②的查看次数：第一次看倒字，第二次才倒置理解
+    bookshelf: 0,
+    note1: 0, note2: 0, // 纸条被翻开的次数：首次翻开才有一句感想
   };
 
   // 是否已"仔细看过"该物品（开灯后才计入）
   const investigated = {
     switch: false, fusebox: false, desk: false, clock: false, badge: false,
     painting: false, puddle: false, countdown: false, door: false, panel: false,
+    bookshelf: false,
   };
 
   const REQUIRED = [
     "switch", "fusebox", "desk", "clock", "badge",
-    "painting", "puddle", "countdown", "door", "panel",
+    "painting", "puddle", "countdown", "door", "panel", "bookshelf",
   ];
 
   function markInv(id) {
@@ -326,7 +329,7 @@
     if (panelEl) panelEl.classList.toggle("glow", flags.clockSolved && !flags.solved);
 
     // 灯灭时，只调暗"需要照明才看得清"的物品，不调暗配电盒与灯开关本身
-    ["desk", "clock", "badge", "door", "countdown"].forEach((id) => {
+    ["desk", "clock", "badge", "door", "countdown", "bookshelf"].forEach((id) => {
       const el = document.getElementById("hs-" + id);
       if (el) el.classList.toggle("dim", !lit);
     });
@@ -388,45 +391,40 @@
       return;
     }
 
-    if (id === "note1") {
+    // 纸条只如实呈现纸上的内容：不替玩家倒置、不替玩家比对、不点破两张纸的关系
+    if (id === "note1" || id === "note2") {
       if (!flags.batteryInstalled) {
         playLines(
           [
-            L_narr("~橘鏡把纸条举到眼前，可周围太黑了，什么都看不清。"),
-            L_think("橘鏡", null, "黑成这样，字都看不清。先弄点亮光再说。"),
+            L_narr("~橘鏡把纸举到眼前，纸面灰蒙蒙一片，一个字也认不出来。"),
+            L_think("橘鏡", null, "瞎子读纸，白费劲。"),
           ],
           resumeFreeRoam
         );
         return;
       }
-      playLines([L_narr("[纸上写着【05：99】。]")], resumeFreeRoam);
-      return;
-    }
-
-    if (id === "note2") {
-      if (!flags.batteryInstalled) {
+      const n = clickCounts[id]++;
+      if (id === "note1") {
+        const lines = [L_narr("[纸上用黑色的笔写着：【05：99】]")];
+        if (n === 0) lines.push(L_think("橘鏡", null, "一串数字，没头没尾的。先收着。"));
+        playLines(lines, resumeFreeRoam);
+        return;
+      }
+      // 纸条②：每点一次，纸在手里转半圈（奇数次是原样，偶数次是转过来）。
+      // 只陈述纸上看到的字，不说"倒着写""该倒过来"，由玩家自己把它和倒挂的画联系起来。
+      if (n % 2 === 0) {
+        const lines = [L_narr("[纸上用黑色的笔写着：【12：66】]")];
+        if (n === 0) lines.push(L_think("橘鏡", null, "又是一串。这屋子的主人是有多爱写数字。"));
+        playLines(lines, resumeFreeRoam);
+      } else {
         playLines(
           [
-            L_narr("~橘鏡把纸条举到眼前，可周围太黑了，什么都看不清。"),
-            L_think("橘鏡", null, "黑成这样，字都看不清。先弄点亮光再说。"),
+            L_narr("~橘鏡把纸在手里转了半圈。"),
+            L_narr("[纸上的字：【99：21】]"),
           ],
           resumeFreeRoam
         );
-        return;
       }
-      // 渐进式：第一次只描述；第二次只描述翻转结果；第三次起才多一句
-      if (clickCounts.note2 === 0) {
-        clickCounts.note2++;
-        playLines([L_narr("[纸上的字头朝下：【12：66】。]")], resumeFreeRoam);
-        return;
-      }
-      const seen = clickCounts.note2;
-      clickCounts.note2++;
-      const lines = [L_narr("[纸条转了半圈，字变成【99：21】。]")];
-      if (seen >= 2 && flags.hasNote1) {
-        lines.push(L_say("橘鏡", null, "两张纸上都有 99。"));
-      }
-      playLines(lines, resumeFreeRoam);
       return;
     }
 
@@ -474,15 +472,10 @@
           L_narr("~橘鏡伸手按下墙上的灯开关。"),
           L_narr("[「咔哒——」]"),
           L_narr("[灯管先是一阵细碎的电流杂音，接着「嗡」地亮了起来。惨白的日光灯照亮了整个房间。]"),
-          L_narr("~突如其来的强光让橘鏡不得不闭眼，抬手挡住眼睛。"),
+          L_narr("~橘鏡抬手挡住眼睛，缓了好几秒才敢睁开。"),
           L_say("橘鏡", "闭眼 刺眼", "嚯——我的眼睛。"),
-          L_narr("[过了几秒，橘鏡慢慢放下手，睁开眼睛。]"),
-          L_narr("~橘鏡睁眼，环顾四周，愣住了。"),
-          L_narr(
-            "[灯光下，房间的全貌显现出来——它太大了，大得不像一间关押室。天花板高得望不到顶，桌椅孤零零地待在远处，人站在这里，渺小得像一件被遗忘的家具。]"
-          ),
-          L_think("橘鏡", "惊 微张嘴", "这房间大得离谱……天花板都看不到顶。"),
-          L_narr("~橘鏡揉了揉眼睛，决定把整个房间都看一遍。")
+          L_narr("[房间比想象的大得多。天花板高得看不清，桌子孤零零地摆在很远的地方。]"),
+          L_think("橘鏡", "惊 微张嘴", "这哪是关人的屋子，拿来停飞机都够了。"),
         ],
         () => {
           flags.batteryInstalled = true;
@@ -555,8 +548,7 @@
     if (!flags.batteryInstalled) {
       playLines(
         [
-          L_narr("~抽屉里已经没有别的东西了。"),
-          L_think("橘鏡", "思索", "配电盒要电池，左边墙要开关。两样都得跑一趟。"),
+          L_narr("~抽屉拉开到底，里面空了。"),
         ],
         resumeFreeRoam
       );
@@ -596,7 +588,7 @@
         L_narr("~橘鏡走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
         L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
         L_say("橘鏡", "恍然", "哦，我的工牌。夜班心理评估员，B7-0313。"),
-        L_think("橘鏡", null, "这可是要紧东西，得揣好。"),
+        L_think("橘鏡", null, "别的都不记得，这玩意儿倒还在。"),
       ],
       () => {
         flags.hasBadge = true;
@@ -620,19 +612,19 @@
     // 渐进式：前三次只给描述，第四次才取下画框
     if (stage === 0) {
       clickCounts.painting++;
-      playLines([L_narr("[一幅小画，画框落了灰。]")], resumeFreeRoam);
+      playLines([L_narr("~画框上积着厚厚一层灰，不知道多久没人碰过了。")], resumeFreeRoam);
       return;
     }
 
     if (stage === 1) {
       clickCounts.painting++;
-      playLines([L_narr("[画里是栋房子，屋顶在下。]")], resumeFreeRoam);
+      playLines([L_narr("~画的是一栋房子，烟囱却冲着地面。")], resumeFreeRoam);
       return;
     }
 
     if (stage === 2) {
       clickCounts.painting++;
-      playLines([L_narr("[画框后面，鼓出一块。]")], resumeFreeRoam);
+      playLines([L_narr("~橘鏡的手顺着画框摸到背面，有一块地方硬硬的，鼓了起来。")], resumeFreeRoam);
       return;
     }
 
@@ -641,15 +633,14 @@
       clickCounts.painting++;
       playLines(
         [
-          L_narr("~橘鏡扶着画框，把它从墙上摘了下来，翻到背面。"),
-          L_narr("[画框背板与边框的缝隙里，塞着一张对折过好几道的白纸。]"),
-          L_say("橘鏡", null, "有张纸。"),
-          L_narr("~橘鏡把纸抽出来，捏在手里，把画框靠在墙边。"),
+          L_narr("~橘鏡把画框从墙上摘下来，翻到背面。"),
+          L_narr("[背板和边框的缝里，塞着一张对折了好几道的白纸。]"),
+          L_narr("~橘鏡把纸抽出来揣进口袋，画框靠在墙根。"),
         ],
         () => {
           flags.hasNote2 = true;
           updateInventory();
-          updateStageVisual();
+          buildHotspots(); // 画落到墙根，热点跟着挪位置
           resumeFreeRoam();
         }
       );
@@ -707,6 +698,33 @@
           "countdown"
         ),
       ],
+      resumeFreeRoam
+    );
+  }
+
+  // ---- 书架：点击抽一本书来读（书的正文先用占位，之后替换 BOOK_TEXT 即可） ----
+  const BOOK_TEXT = "【书内容占位——————】";
+  function onBookshelf() {
+    if (!flags.batteryInstalled) {
+      playLines(
+        [L_narr("~橘鏡摸到一排冰凉的木板，挨着墙立着，上面码着些硬邦邦的长方块。")],
+        resumeFreeRoam
+      );
+      return;
+    }
+    markInv("bookshelf");
+    const first = clickCounts.bookshelf++ === 0;
+    playLines(
+      first
+        ? [
+            L_narr("~墙边立着一座顶到天花板的书架，书脊上的字被灰盖住了大半。"),
+            L_narr("~橘鏡随手抽出一本，翻开。"),
+            L_narr("[" + BOOK_TEXT + "]"),
+          ]
+        : [
+            L_narr("~橘鏡又从架子上抽出一本，翻开。"),
+            L_narr("[" + BOOK_TEXT + "]"),
+          ],
       resumeFreeRoam
     );
   }
@@ -798,9 +816,9 @@
     if (firstTime) {
       playLines(
         [
-          L_narr("~橘鏡走到门旁的墙边。墙上嵌着一个圆形的时钟，指针缓慢地走着。"),
+          L_narr("~橘鏡仰头看向墙上的圆形时钟。指针一格一格地走着。"),
           L_narr("[时钟显示着：凌晨 2 点 14 分。]"),
-          L_say("橘鏡", "疑惑", "凌晨……2 点 14 分？我睡了这么久吗。"),
+          L_say("橘鏡", "疑惑", "凌晨两点十四……我昏了多久？"),
         ],
         resumeFreeRoam
       );
@@ -831,7 +849,7 @@
 
     // 有纸条但没探索完 → 劝阻，让玩家把房间看全
     if (notesReady && !explored) {
-      playLines([L_say("橘鏡", null, "先不急，屋里还有地方没转过。")], resumeFreeRoam);
+      playLines([L_think("橘鏡", null, "这屋子我还没转完。")], resumeFreeRoam);
       return;
     }
 
@@ -841,9 +859,8 @@
         clickCounts.clock++;
         playLines(
           [
-            L_narr("~橘鏡把纸条和时钟对着看了一会儿。"),
-            L_think("橘鏡", "叹息", "手里的线索还没凑齐，现在也只是碰运气。"),
-            L_say("橘鏡", null, "再看看房间里还有什么线索，还没探索完嘞。"),
+            L_narr("~橘鏡拿着纸条，对着时钟看了一会儿。"),
+            L_think("橘鏡", "叹息", "手里的东西不够，现在拨，纯属碰运气。"),
           ],
           resumeFreeRoam
         );
@@ -853,8 +870,8 @@
         [
           cycle(
             [
-              L_think("橘鏡", null, "现在只能蒙，概率太低了，有什么漏掉的线索吗？"),
-              L_narr("~橘鏡在时钟前站了一会儿，转身去看别处。"),
+              L_think("橘鏡", null, "再拨也是蒙。"),
+              L_narr("~橘鏡在时钟前站了一会儿，转身走开了。"),
             ],
             "clock"
           ),
@@ -1067,21 +1084,38 @@
   // 前方墙壁（↑ 从地面进入）：倒计时屏 / 时钟 / 画
   // 左边墙壁（← 从前方墙壁进入）：灯开关
   // 右边墙壁（→ 从前方墙壁进入）：门 / 电子面板
-  const HOTSPOTS = [
-    { id: "fusebox", view: "floor", label: "配电盒", cls: "c-fusebox", style: "top:52%;left:10%;width:90px;height:80px;", onClick: onFusebox },
-    { id: "desk", view: "floor", label: "桌子 / 抽屉", cls: "c-desk", style: "top:50%;left:42%;width:150px;height:60px;", onClick: onDesk },
-    { id: "badge", view: "floor", label: "工牌", cls: "c-badge", style: "top:40%;left:50%;width:55px;height:32px;", onClick: onBadge },
-    { id: "puddle", view: "floor", label: "水渍", cls: "c-puddle", style: "top:70%;left:68%;width:120px;height:44px;border-radius:50%;", onClick: onPuddle },
+  // 位置与大小不在这里写死：由 layout.js 里的 3D 房间布局投影得到（rect2d），
+  // 所以右侧热点与左侧房间模型里的物品始终对得上。
+  const HOTSPOT_HANDLERS = {
+    fusebox: onFusebox,
+    desk: onDesk,
+    badge: onBadge,
+    puddle: onPuddle,
+    countdown: onCountdown,
+    clock: onClock,
+    painting: onPainting,
+    switch: onSwitch,
+    bookshelf: onBookshelf,
+    door: onDoor,
+    panel: onPanel,
+  };
 
-    { id: "countdown", view: "front", label: "倒计时屏", cls: "c-countdown", style: "top:8%;left:42%;width:90px;height:28px;", onClick: onCountdown },
-    { id: "clock", view: "front", label: "时钟", cls: "c-clock", style: "top:32%;left:55%;width:85px;height:85px;border-radius:50%;", onClick: onClock },
-    { id: "painting", view: "front", label: "画", cls: "c-painting", style: "top:18%;left:16%;width:85px;height:105px;", onClick: onPainting },
+  function hotspotStyle(def) {
+    // 取下画框后，画靠在墙边地面上，热点跟着挪过去（与 3D 模型一致）
+    const pos = def.id === "painting" && flags.hasNote2 ? def.fallenPos : def.pos;
+    const r = window.ROOM_LAYOUT.rect2d(def, pos);
+    const round = def.shape === "cyl" || def.shape === "disc" ? "border-radius:50%;" : "";
+    return "left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px;" + round;
+  }
 
-    { id: "switch", view: "left", label: "灯开关", cls: "c-switch", style: "top:40%;left:45%;width:70px;height:85px;", onClick: onSwitch },
-
-    { id: "door", view: "right", label: "门", cls: "c-door", style: "top:18%;left:55%;width:75px;height:175px;", onClick: onDoor },
-    { id: "panel", view: "right", label: "电子面板", cls: "c-panel", style: "top:18%;left:28%;width:70px;height:75px;", onClick: onPanel },
-  ];
+  const HOTSPOTS = window.ROOM_LAYOUT.items.map((def) => ({
+    id: def.id,
+    view: def.view,
+    label: def.hsLabel || def.label,
+    cls: "c-" + def.id,
+    def,
+    onClick: HOTSPOT_HANDLERS[def.id],
+  }));
 
   // 视角导航箭头：floor --↑--> front --←/→--> left/right，left/right --返回--> front
   const NAV_MAP = {
@@ -1131,7 +1165,7 @@
       const el = document.createElement("div");
       el.id = "hs-" + h.id;
       el.className = "hotspot " + h.cls;
-      el.setAttribute("style", h.style);
+      el.setAttribute("style", hotspotStyle(h.def));
       const labelEl = document.createElement("div");
       labelEl.className = "hs-label";
       labelEl.textContent = h.label;
