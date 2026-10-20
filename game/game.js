@@ -58,8 +58,7 @@
     R.setLit(flags.batteryInstalled);
     R.setItemState("badge", { hidden: flags.hasBadge });
     R.setItemState("panel", { glow: flags.clockSolved });
-    const paintDef = window.ROOM_LAYOUT.byId.painting;
-    R.setItemState("painting", { pos: flags.hasNote2 ? paintDef.fallenPos : paintDef.pos });
+    R.setItemState("painting", { pos: window.ROOM_LAYOUT.byId.painting.pos });
     if (syncRoom3D.lastView !== currentView) {
       syncRoom3D.lastView = currentView;
       R.setView(currentView);
@@ -395,8 +394,8 @@
     if (id === "battery") {
       playLines(
         [
-          L_narr("[一节普通的干电池。外壳上印着模糊的型号，像是从某个旧机器上拆下来的。]"),
-          L_think("橘鏡", null, "电池。先揣着。"),
+          L_narr("[一块大型电池。外壳上印着模糊的型号，像是从某个旧机器上拆下来的。]"),
+          L_think("橘鏡", null, "电池，不知道安装在哪里，总之先揣着吧。"),
         ],
         resumeFreeRoam
       );
@@ -408,8 +407,8 @@
       if (!flags.batteryInstalled) {
         playLines(
           [
-            L_narr("~橘鏡把纸举到眼前，纸面灰蒙蒙一片，一个字也认不出来。"),
-            L_think("橘鏡", null, "瞎子读纸，白费劲。"),
+            L_narr("~橘鏡把纸举到眼前，太黑了，只能摸到有笔写过的字迹。"),
+            L_think("橘鏡", null, "太黑了，什么都看不清啊，可能是什么线索。"),
           ],
           resumeFreeRoam
         );
@@ -418,20 +417,20 @@
       const n = clickCounts[id]++;
       if (id === "note1") {
         const lines = [L_narr("[纸上用黑色的笔写着：【05：99】]")];
-        if (n === 0) lines.push(L_think("橘鏡", null, "一串数字，没头没尾的。先收着。"));
+        if (n === 0) lines.push(L_think("橘鏡", null, "这是时间吗？但是没有这个数，真奇怪。"));
         playLines(lines, resumeFreeRoam);
         return;
       }
       // 纸条②：每点一次，纸在手里转半圈（奇数次是原样，偶数次是转过来）。
-      // 只陈述纸上看到的字，不说"倒着写""该倒过来"，由玩家自己把它和倒挂的画联系起来。
       if (n % 2 === 0) {
-        const lines = [L_narr("[纸上用黑色的笔写着：【12：66】]")];
-        if (n === 0) lines.push(L_think("橘鏡", null, "又是一串。这屋子的主人是有多爱写数字。"));
+        const lines = [L_narr("[纸上用黑色的笔写着：【12：66】，字迹龙飞凤舞，希望没有辨认错]")];
+        if (n === 0) lines.push(L_think("橘鏡", null, "又是一串数字，这个时间也不太正常的感觉。"));
         playLines(lines, resumeFreeRoam);
       } else {
         playLines(
           [
-            L_narr("~橘鏡把纸在手里转了半圈。"),
+            L_narr("~橘鏡把纸在手里翻来覆去。"),
+            L_narr("[我知道了！要稍微转变一下看的方向。]"),
             L_narr("[纸上的字：【99：21】]"),
           ],
           resumeFreeRoam
@@ -446,9 +445,9 @@
           cycle(
             [
               L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
-              L_think("橘鏡", null, "橘鏡，夜班心理评估员，B7-0313。……嗯，是我没错。"),
+              L_think("橘鏡", null, "橘鏡，夜班心理评估员，B7-0313。……嗯，我的照片还挺帅的。"),
               L_narr("~工牌边缘有点磨损，像是戴了很久。挂绳上还留着一道折痕。"),
-              L_think("橘鏡", null, "心理评估员被关进这种房间……说出去，还挺像笑话的。"),
+              L_think("橘鏡", null, "我还是不太喜欢带工牌，感觉莫名勒脖子。"),
             ],
             "badge"
           ),
@@ -473,7 +472,7 @@
   function onSwitch() {
     // ① 还没通电：按了没反应
     if (!flags.powerOn) {
-      playLines([L_narr("[咔哒。灯没亮。]")], resumeFreeRoam);
+      playLines([L_narr("[咔哒。没有反应，是没有电了吗？]")], resumeFreeRoam);
       return;
     }
 
@@ -482,12 +481,12 @@
       playLines(
         [
           L_narr("~橘鏡伸手按下墙上的灯开关。"),
-          L_narr("[「咔哒——」]"),
-          L_narr("[灯管先是一阵细碎的电流杂音，接着「嗡」地亮了起来。惨白的日光灯照亮了整个房间。]"),
-          L_narr("~橘鏡抬手挡住眼睛，缓了好几秒才敢睁开。"),
-          L_say("橘鏡", "闭眼 刺眼", "嚯——我的眼睛。"),
-          L_narr("[房间比想象的大得多。天花板高得看不清，桌子孤零零地摆在很远的地方。]"),
-          L_think("橘鏡", "惊 微张嘴", "这哪是关人的屋子，拿来停飞机都够了。"),
+          L_narr("[「咔哒！——」]"),
+          L_narr("[先是一阵细碎的电流杂音，接着灯管「嗡——」地亮了起来。雪白的日光灯照亮了整个房间。]"),
+          L_narr("~橘鏡抬手捂住眼睛，缓了好几秒慢慢睁开。"),
+          L_say("橘鏡", "闭眼 刺眼", "我的天！——我的眼睛。"),
+          L_narr("[这个房间比想象的大得多，天花板高得看不清，桌子孤零零地摆在房间中间。]"),
+          L_think("橘鏡", "惊 微张嘴", "好家伙，这到底是个什么地方啊。"),
         ],
         () => {
           flags.batteryInstalled = true;
@@ -502,7 +501,7 @@
     // ③ 灯已经亮了：循环确认台词
     markInv("switch");
     playLines(
-      [L_narr("~橘鏡又按了按灯开关。开关「咔哒」响了一声，灯本来就是亮的。")],
+      [L_narr("~橘鏡又按了按灯开关，开关「咔哒」响了一声。哎，这里太黑了，灯就不要关上了，橘鏡重新把灯打开。")],
       resumeFreeRoam
     );
   }
@@ -511,22 +510,22 @@
     // ② 已通电（灯可能亮着，也可能还灭着）——只做确认
     if (flags.powerOn) {
       markInv("fusebox");
-      playLines([L_narr("[盒里的小灯亮着，别的接口都是空的。]")], resumeFreeRoam);
+      playLines([L_narr("[盒里的小灯亮着，应该是成功接通的状态。]")], resumeFreeRoam);
       return;
     }
 
     // ① 还没装电池
     if (!flags.hasBattery) {
-      playLines([L_narr("[盒盖内侧，有个空着的电池槽。]")], resumeFreeRoam);
+      playLines([L_narr("[打开盒子，在盒盖内侧有个空着的电池槽。]")], resumeFreeRoam);
       return;
     }
 
     // ③ 持有电池 → 装电池（通电，但灯还没开）
     playLines(
       [
-        L_narr("~橘鏡蹲在配电盒前，把电池对准卡槽，推进去。"),
-        L_narr("[「咔」的一声，电池卡进了槽里。]"),
-        L_narr("[盒里一盏小灯闪了一下。]"),
+        L_narr("~橘鏡蹲在配电盒前，把电池对准卡槽推进去。"),
+        L_narr("[「咔！——」的一声，电池卡进了槽里，不知哪里传来了提示的声音。]"),
+        L_narr("[盒里一盏小灯闪了一下，应该是打开了。]"),
       ],
       () => {
         flags.powerOn = true;
@@ -543,9 +542,10 @@
       clickCounts.desk++;
       playLines(
         [
-          L_narr("~橘鏡转身，摸索到房间中央的桌子，拉开抽屉。"),
-          L_narr("[抽屉里躺着一节电池，还有一张折起来的白纸。]"),
-          L_think("橘鏡", null, "电池，还有张纸。先收着，回头再看。"),
+          L_narr("~橘鏡摸索到房间中央的桌子，拉开抽屉。"),
+          L_narr("[抽屉里躺着一块电池，还有一张折起来的白纸。]"),
+          L_think("橘鏡", null, "电池，那么大一块？是从什么地方拆下来的吗？看看有没有地方能安放。"),
+          L_think("橘鏡", null, "然后……还有张纸。太黑了看不清字，先收着吧。"),
         ],
         () => {
           flags.hasBattery = true;
@@ -560,7 +560,7 @@
     if (!flags.batteryInstalled) {
       playLines(
         [
-          L_narr("~抽屉拉开到底，里面空了。"),
+          L_narr("~抽屉拉开到底，里面什么都没有，去别的地方看看吧。"),
         ],
         resumeFreeRoam
       );
@@ -572,7 +572,7 @@
         cycle(
           [
             L_narr("~抽屉是空的，里面只剩下一层灰。"),
-            L_think("橘鏡", null, "就一个抽屉。底板上一圈压痕，像放过什么东西，又拿走了。"),
+            L_think("橘鏡", null, "一个空的抽屉，里面的东西之前拿走了。"),
           ],
           "desk"
         ),
@@ -583,13 +583,16 @@
 
   function onBadge() {
     if (!flags.batteryInstalled) {
-      playLines([L_say("橘鏡", null, "摸到张卡片……看不清。")], resumeFreeRoam);
+      playLines(
+        [L_say("橘鏡", null, "这是张卡片吗？先找一下灯怎么开吧，其他的待会再探索。")],
+        resumeFreeRoam
+      );
       return;
     }
     // 工牌已经拾取并收进物品栏，桌上这里不会再有新反应
     if (flags.hasBadge) {
       playLines(
-        [L_narr("~桌上已经没有别的东西了，工牌刚才已经收起来了。")],
+        [L_narr("~一张有点旧的桌子，桌上已经没有别的东西了。")],
         resumeFreeRoam
       );
       return;
@@ -597,10 +600,10 @@
     markInv("badge");
     playLines(
       [
-        L_narr("~橘鏡走到桌边，捡起桌上倒扣的工牌，翻了过来。"),
+        L_narr("~橘鏡走到桌边，查看桌上的卡片，将卡片翻了过来。"),
         L_narr("[一张员工工牌。姓名：橘鏡。职位：夜班心理评估员。编号：B7-0313。]"),
-        L_say("橘鏡", "恍然", "哦，我的工牌。夜班心理评估员，B7-0313。"),
-        L_think("橘鏡", null, "别的都不记得，这玩意儿倒还在。"),
+        L_say("橘鏡", "恍然", "哎？这是我的工牌吗？夜班心理评估员，B7-0313。"),
+        L_think("橘鏡", null, "这个应该是我的吧，上面写着我的名字。"),
       ],
       () => {
         flags.hasBadge = true;
@@ -624,13 +627,13 @@
     // 渐进式：前三次只给描述，第四次才取下画框
     if (stage === 0) {
       clickCounts.painting++;
-      playLines([L_narr("~画框上积着厚厚一层灰，不知道多久没人碰过了。")], resumeFreeRoam);
+      playLines([L_narr("~画框上积着厚厚一层灰，画面有些奇怪。")], resumeFreeRoam);
       return;
     }
 
     if (stage === 1) {
       clickCounts.painting++;
-      playLines([L_narr("~画的是一栋房子，烟囱却冲着地面。")], resumeFreeRoam);
+      playLines([L_narr("~画的是一栋在空中倒置的奇异的房子，很华丽。")], resumeFreeRoam);
       return;
     }
 
@@ -646,20 +649,19 @@
       playLines(
         [
           L_narr("~橘鏡把画框从墙上摘下来，翻到背面。"),
-          L_narr("[背板和边框的缝里，塞着一张对折了好几道的白纸。]"),
-          L_narr("~橘鏡把纸抽出来揣进口袋，画框靠在墙根。"),
+          L_narr("[背板和边框的缝里，塞着一张对折了好几次的白纸。]"),
+          L_narr("~橘鏡把纸抽出来揣进口袋，将画重新挂了回去。"),
         ],
         () => {
           flags.hasNote2 = true;
           updateInventory();
-          buildHotspots(); // 画落到墙根，热点跟着挪位置
           resumeFreeRoam();
         }
       );
       return;
     }
 
-    playLines([L_narr("~画框靠在墙边，背面已经空了。")], resumeFreeRoam);
+    playLines([L_narr("~画着一栋在空中倒置的奇异的华丽房子。")], resumeFreeRoam);
   }
 
   function onPuddle() {
@@ -668,9 +670,9 @@
     if (!flags.sawFace) {
       playLines(
         [
-          L_narr("~水面渐渐静下来，橘鏡低头看去。"),
-          L_narr("[水渍里，倒映出一张脸——是他自己的脸。]"),
-          L_think("橘鏡", "怔住", "……好久没这么正经地看过自己了。"),
+          L_narr("~水面很清澈，橘鏡低头看去。"),
+          L_narr("[水渍里，倒映出橘镜的脸。]"),
+          L_think("橘鏡", "欣赏", "……好久没这么正经地看过自己了，还是一如既往的帅气。"),
           L_narr("[从这一刻起，可以保存与读取进度，也能查看故事的分支流程图。]"),
         ],
         () => {
@@ -683,7 +685,7 @@
       return;
     }
 
-    playLines([L_narr("[水面平静，映着天花板。]")], resumeFreeRoam);
+    playLines([L_narr("[水面平静地映着天花板。]")], resumeFreeRoam);
   }
 
   // ---- 倒计时屏：只在点击时给出催促提示 ----
@@ -692,7 +694,7 @@
       playLines(
         [
           L_say("橘鏡", "好奇", "诶，那是在倒数吗？"),
-          L_think("橘鏡", "平静", "归零了会怎样呢。……算了，最好别等到那会儿才明白。"),
+          L_think("橘鏡", "紧张", "归零了会怎样呢。……嘶，感觉还是不要等它归零比较好。"),
         ],
         resumeFreeRoam
       );
@@ -703,9 +705,9 @@
       [
         cycle(
           [
-            L_think("橘鏡", "催促", "数字在往下掉。……行行行，我快点还不行吗。"),
-            L_narr("~红色的数字一格一格往下跳。看久了，心跳好像也跟着一起走。"),
-            L_think("橘鏡", "平静", "归零会怎样？没人说。不过嘛，最好别等到那会儿再知道。"),
+            L_think("橘鏡", "紧张", "数字在往下掉！啊啊啊，我得快点了。"),
+            L_narr("~红色的数字一格一格往下跳。看久了感觉心脏好像在蹦跶。"),
+            L_think("橘鏡", "紧张", "归零会怎样啊！"),
           ],
           "countdown"
         ),
@@ -714,12 +716,12 @@
     );
   }
 
-  // ---- 书架：点击抽一本书来读（书的正文先用占位，之后替换 BOOK_TEXT 即可） ----
-  const BOOK_TEXT = "【书内容占位——————】";
+  // ---- 书架：第一次读到书的内容，之后都是空白书（书的正文替换 BOOK_TEXT 即可） ----
+  const BOOK_TEXT = "【空白的书】\n【空白的书】\n【空白的书】\n【空白的书】\n【空白的书】";
   function onBookshelf() {
     if (!flags.batteryInstalled) {
       playLines(
-        [L_narr("~橘鏡摸到一排冰凉的木板，挨着墙立着，上面码着些硬邦邦的长方块。")],
+        [L_narr("~橘鏡摸到一排冰凉的木板，上面码着些硬邦邦的长方块，这是书架吗？")],
         resumeFreeRoam
       );
       return;
@@ -730,12 +732,12 @@
       first
         ? [
             L_narr("~墙边立着一座顶到天花板的书架，书脊上的字被灰盖住了大半。"),
-            L_narr("~橘鏡随手抽出一本，翻开。"),
+            L_narr("~橘鏡抽出一本看着很新的书，翻开查看。"),
             L_narr("[" + BOOK_TEXT + "]"),
           ]
         : [
-            L_narr("~橘鏡又从架子上抽出一本，翻开。"),
-            L_narr("[" + BOOK_TEXT + "]"),
+            L_narr("~橘鏡从架子上抽出一本，翻开。"),
+            L_narr("[是空白的，好像只有刚刚那本有内容，这边应该调查完了，去别的地方看看吧]"),
           ],
       resumeFreeRoam
     );
@@ -744,11 +746,11 @@
   // ---- 门：不指向时钟 ----
   function onDoor() {
     if (!flags.batteryInstalled) {
-      playLines([L_say("橘鏡", null, "门，锁着。")], resumeFreeRoam);
+      playLines([L_say("橘鏡", null, "是从这个门出去吗？啊——果然锁着。")], resumeFreeRoam);
       return;
     }
     if (flags.solved) {
-      playLines([L_narr("~面板亮着，选择工作间的界面还开着。")], resumeFreeRoam);
+      playLines([L_narr("~门还是打不开，是其他地方的锁开了吗？")], resumeFreeRoam);
       return;
     }
     markInv("door");
@@ -756,9 +758,9 @@
       [
         cycle(
           [
-            L_narr("~橘鏡走到门前，握住把手用力推了推。门纹丝不动。"),
-            L_narr("~门缝压得很紧，连一丝光都透不进来。锁扣那边传来沉闷的金属声。"),
-            L_think("橘鏡", null, "推不动。这扇门不吃力气，得找别的开法。"),
+            L_narr("~橘鏡走到门前，握住把手用力推了推。门像和空间黏在一起了一样，纹丝不动。"),
+            L_narr("~门缝压得很紧，感觉连一丝光都透不进来。"),
+            L_think("橘鏡", null, "推不动啊，再探索看看。"),
           ],
           "door"
         ),
@@ -774,7 +776,7 @@
       return;
     }
     if (!flags.batteryInstalled) {
-      playLines([L_say("橘鏡", null, "黑漆漆的，啥也看不见。")], resumeFreeRoam);
+      playLines([L_say("橘鏡", null, "这是什么屏幕？现在太黑了，啥也看不见。")], resumeFreeRoam);
       return;
     }
     // 时钟已经拨对，面板已经通电——玩家主动走过来点开它，才真正触发系统启动
@@ -782,9 +784,9 @@
       markInv("panel");
       playLines(
         [
-          L_narr("~橘鏡走到门旁，面板果然亮着，泛着惨白的光。"),
-          L_narr("[门旁的电子面板「嗡」地亮了起来，惨白的光映在橘鏡脸上。]"),
-          L_say("橘鏡", "警惕", "哟，亮了。这是什么系统？"),
+          L_narr("~橘鏡走到门旁，墙壁上的面板不知道什么时候亮的，屏幕泛着绿色的亮光。"),
+          L_narr("[门旁的电子面板「嗡」地亮了起来，光映在橘鏡脸上。]"),
+          L_say("橘鏡", "疑惑", "亮了。这是什么？系统面板……"),
         ],
         () => {
           flags.solved = true;
@@ -799,9 +801,9 @@
       [
         cycle(
           [
-            L_narr("~面板嵌在门边的墙上，比一块砖大不了多少，整块屏幕是全黑的。"),
-            L_narr("~橘鏡敲了敲面板边缘。没有反应，连一丝电流声都没有。"),
-            L_think("橘鏡", "观察", "不通电的屏幕，黑得像块砖。它在等谁把它叫醒呢。"),
+            L_narr("~一块面板嵌在门边的墙上，大小差不多一块砖头那样，屏幕是全黑的，怎么样打开它？"),
+            L_narr("~橘鏡敲了敲面板边缘，虽说卡顿的家电拍一拍就能修好，但是没通电的家电这个方法不行啊。"),
+            L_think("橘鏡", "观察", "没通电的屏幕，像块板砖。"),
           ],
           "panel"
         ),
@@ -813,11 +815,11 @@
   // ---- 时钟：解谜入口（带全调查门禁） ----
   function onClock() {
     if (!flags.batteryInstalled) {
-      playLines([L_say("橘鏡", null, "太黑了，看不清时钟。")], resumeFreeRoam);
+      playLines([L_say("橘鏡", null, "听声音，是时钟吗？太黑了，看不清时间。")], resumeFreeRoam);
       return;
     }
     if (flags.solved) {
-      playLines([L_narr("~时钟已经归位了，面板亮着呢。")], resumeFreeRoam);
+      playLines([L_narr("~时钟指针静止在5点21分。")], resumeFreeRoam);
       return;
     }
 
@@ -828,9 +830,9 @@
     if (firstTime) {
       playLines(
         [
-          L_narr("~橘鏡仰头看向墙上的圆形时钟。指针一格一格地走着。"),
+          L_narr("~橘鏡仰头看向墙上的圆形时钟。指针在一格一格地走着。"),
           L_narr("[时钟显示着：凌晨 2 点 14 分。]"),
-          L_say("橘鏡", "疑惑", "凌晨两点十四……我昏了多久？"),
+          L_say("橘鏡", "疑惑", "凌晨两点十四……我这是昏了多久啊？"),
         ],
         resumeFreeRoam
       );
@@ -844,7 +846,7 @@
     if (notesReady && explored) {
       playLines(
         [
-          L_narr("[两张纸条摊在时钟前。]"),
+          L_narr("[那两张纸条应该和这个时钟有关系。]"),
           L_say("橘鏡", null, "试试吧。"),
         ],
         () => {
@@ -861,7 +863,7 @@
 
     // 有纸条但没探索完 → 劝阻，让玩家把房间看全
     if (notesReady && !explored) {
-      playLines([L_think("橘鏡", null, "这屋子我还没转完。")], resumeFreeRoam);
+      playLines([L_think("橘鏡", null, "再探索看看，这屋子还有地方没转完。")], resumeFreeRoam);
       return;
     }
 
@@ -872,7 +874,7 @@
         playLines(
           [
             L_narr("~橘鏡拿着纸条，对着时钟看了一会儿。"),
-            L_think("橘鏡", "叹息", "手里的东西不够，现在拨，纯属碰运气。"),
+            L_think("橘鏡", "叹息", "这个时间不存在啊，要是是电子钟没准能卡出来。"),
           ],
           resumeFreeRoam
         );
@@ -882,8 +884,8 @@
         [
           cycle(
             [
-              L_think("橘鏡", null, "再拨也是蒙。"),
-              L_narr("~橘鏡在时钟前站了一会儿，转身走开了。"),
+              L_think("橘鏡", null, "还缺一些线索吧。"),
+              L_narr("~橘鏡在时钟前观察了一会，转身走开了。"),
             ],
             "clock"
           ),
@@ -898,8 +900,8 @@
       [
         cycle(
           [
-            L_think("橘鏡", null, "什么提示都没有，拨了也是白拨。"),
-            L_narr("~指针静止在2点14分"),
+            L_think("橘鏡", null, "2点14？这个时钟怎么停下来了？明明刚刚还在走的，难道是什么机关吗？"),
+            L_narr("~时钟的指针静止在2点14分"),
           ],
           "clock"
         ),
@@ -937,7 +939,7 @@
     clockFails = 0;
     showScreen("game");
     playLines(
-      [L_think("橘鏡", null, "再溜达溜达。")],
+      [L_think("橘鏡", null, "让我思考一下。")],
       resumeFreeRoam
     );
   });
@@ -954,8 +956,8 @@
       showScreen("game");
       playLines(
         [
-          L_narr("[「咔哒。」看起来时间正确了。]"),
-          L_narr("~就在这时，右边墙的方向传来一声轻微的电流声。"),
+          L_narr("[「咔哒。」发出了零件归位的声音，看起来是什么机关解开了。]"),
+          L_narr("~右边墙的方向传来一声轻微的电流声。"),
         ],
         () => {
           clockFails = 0;
@@ -1005,12 +1007,13 @@
       [
         L_narr("[屏幕亮起，一段失真的机械音从面板里传来。]"),
         L_say("系统机械音", null, "全员 16 人，入职登记完成。"),
-        L_narr("[屏幕亮起，出现三扇门的选项，以及一排排黑色的人形剪影——只有工牌号，没有脸。]"),
-        L_say("系统机械音", null, "接下来，请选择你要进入的【工作间】。每个工作间，至少需要 5 人。"),
+        L_narr("[屏幕亮起，出现奇怪的选项，以及一排排黑色的人形剪影——剪影上面标注的只有工牌号，和开线上会议一样。]"),
+        L_say("系统机械音", null, "接下来，请选择你要进入的【工作间】。每个工作间，至少需要 4 人。"),
+        L_say("系统机械音", null, "这里是规则说明————————"),
         L_say(
           "系统机械音",
           null,
-          "规则说明——你们十六人，要进入怪谈房间，探索房间出现的诡异现象。通俗点说，就是敢死队。"
+          "你们十六人，要进入怪谈房间，探索房间出现的诡异现象。嘛~通俗点说，就是敢死队。"
         ),
         L_say(
           "系统机械音",
@@ -1025,13 +1028,19 @@
         L_say(
           "系统机械音",
           null,
-          "每扇门，需要两份『押金』。自愿上交的人优先登记；要是自愿的人数不够——缺口，就从进这扇门的人里，随机抽。"
+          "这次的每扇门，都需要两份『押金』哦。顺带一提，自愿上交的人优先登记。"
         ),
         L_say(
           "系统机械音",
           null,
-          "为了防止你们把房间直接炸掉……你们肯定有人这样想过，不是吗？"
+          "不够要是自愿的人数不够嘛——就从要进这扇门的人里，随机抽啦！"
         ),
+        L_say(
+          "系统机械音",
+          null,
+          "不过不用担心，押金只是为了防止你们把房间直接炸掉……"
+        ),
+        L_say("系统机械音", null, "你们肯定有人这样想过，不是吗？"),
         L_narr("~屏幕上，其他人的黑色剪影逐个亮起、又逐个暗下。带着工号标注的电子音，此起彼伏地响起。"),
         L_say("工牌 B7-0107 · 电子音", null, "天呐，我们不会死在这里吧？"),
         L_say("工牌 B7-0204 · 电子音", null, "看不见有点难受了，只能选茶水间了吗……"),
@@ -1118,9 +1127,7 @@
   };
 
   function hotspotStyle(def) {
-    // 取下画框后，画靠在墙边地面上，热点跟着挪过去（与 3D 模型一致）
-    const pos = def.id === "painting" && flags.hasNote2 ? def.fallenPos : def.pos;
-    const r = window.ROOM_LAYOUT.rect2d(def, pos);
+    const r = window.ROOM_LAYOUT.rect2d(def, def.pos);
     const round = def.shape === "cyl" || def.shape === "disc" ? "border-radius:50%;" : "";
     return "left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px;" + round;
   }
@@ -1208,15 +1215,15 @@
     showScreen("game");
     playLines(
       [
-        L_narr("[一个昏暗的房间，几乎伸手不见五指。只有正前方高处，一点幽暗的红光，一闪一闪。]"),
+        L_narr("[一个昏暗伸手不见五指的房间。隐约感觉正前方高处有幽暗的红光，一闪一闪的。]"),
         L_narr("[橘鏡躺在地板上，缓缓睁开眼睛。]"),
-        L_say("橘鏡", "揉眼", "啊咧……这是哪儿来着？我进了电梯，然后……嗯，想不起来啦。"),
-        L_think("橘鏡", "平静", "记得，全记得。不过刚醒，先装个傻，看看这儿是什么路数。"),
+        L_say("橘鏡", "揉眼", "嘶……哎？这是哪？我记得我进了电梯，然后……"),
+        L_think("橘鏡", null, "好黑啊，这里有灯吗？"),
         L_narr("~橘鏡撑着地坐起来，环顾四周，只看得见那一点红光，忽明忽暗，离得很远。"),
-        L_think("橘鏡", "观察", "黑得挺彻底。行吧，先摸，别踩到什么不该踩的。"),
-        L_narr("~橘鏡伸手在周围摸索。"),
+        L_think("橘鏡", "观察", "太黑了看不清，只能抹黑探索一下了，希望别踩到什么不该踩的。"),
+        L_narr("~橘鏡扶着墙四处摸索。"),
         L_narr("[指尖碰到冰凉的地面，还有一些家具模糊的轮廓。]"),
-        L_think("橘鏡", null, "有桌子，还有点别的。一样一样摸过去呗，急也没用。"),
+        L_think("橘鏡", null, "这个是……桌子，上面还放在什么的。啊啊，只能一样一样摸过去了。"),
         L_narr(
           "【可交互】点击场景中的色块可以调查周围；点击画面边缘的箭头，可以转动视角，看看房间其他角落。"
         ),
