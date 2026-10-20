@@ -19,6 +19,7 @@
       <button id="btn-continue">继续</button>
       <button id="btn-load-menu">存档管理</button>
       <button id="btn-flowchart-menu">剧情流程图</button>
+      <button id="btn-codex-menu">图鉴</button>
     </div>
   </div>
 </div>
@@ -169,6 +170,19 @@
   <button id="btn-flowchart-back" class="back-btn">返回<span>back</span></button>
 </div>
 
+<!-- 图鉴：每页一名角色，四条描述里有一条是假的 -->
+<div id="screen-codex" class="screen">
+  <button id="cx-prev" class="cx-arrow" aria-label="上一页">◀</button>
+  <div id="cx-card">
+    <div id="cx-title"></div>
+    <ul id="cx-lines"></ul>
+    <div id="cx-tip">这上面有一点是假的</div>
+  </div>
+  <button id="cx-next" class="cx-arrow" aria-label="下一页">▶</button>
+  <div id="cx-count">01/16</div>
+  <button id="btn-codex-back" class="back-btn">返回<span>back</span></button>
+</div>
+
 <!-- 占位关卡 / 流程节点播放器：用于测试流程图的解锁、剧情锁与连线 -->
 <div id="screen-node" class="screen">
   <div id="node-panel">
@@ -209,6 +223,7 @@
 <script src="layout.js"></script>
 <script src="game.js"></script>
 <script src="flow.js"></script>
+<script src="codex.js"></script>
 <script type="module">
   import "./room3d.js";
   const el = document.getElementById("room3d");

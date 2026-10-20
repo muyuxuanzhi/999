@@ -24,6 +24,7 @@
     saves: document.getElementById("screen-saves"),
     flowchart: document.getElementById("screen-flowchart"),
     node: document.getElementById("screen-node"),
+    codex: document.getElementById("screen-codex"),
   };
   const stageEl = document.getElementById("stage");
   const stageLabelEl = document.getElementById("stage-label");

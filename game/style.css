@@ -370,6 +370,47 @@ html, body {
 .back-btn span { font-style: italic; font-size: 24px; letter-spacing: 1px; opacity: 0.85; }
 .back-btn:hover { background: linear-gradient(135deg, #7388a6, #3a4a60); }
 
+/* ---------- 图鉴 ---------- */
+#screen-codex {
+  background:
+    repeating-linear-gradient(90deg, rgba(143,166,200,0.05) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(0deg, rgba(143,166,200,0.05) 0 2px, transparent 2px 46px),
+    radial-gradient(ellipse at 50% 30%, #243046 0%, #141a26 70%, #0a0d14 100%);
+}
+#cx-card {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(640px, 70vw); padding: 34px 40px 28px;
+  background: rgba(20,26,38,0.92); border: 2px solid #9fb2cc; border-radius: 6px;
+  box-shadow: 0 0 24px rgba(143,166,200,0.25);
+}
+#cx-title {
+  font-size: 28px; letter-spacing: 4px; color: #8FA6C8;
+  text-shadow: 0 0 10px rgba(143,166,200,0.5);
+  padding-bottom: 12px; border-bottom: 1px solid rgba(159,178,204,0.4);
+}
+#cx-lines { list-style: none; margin: 18px 0 0; padding: 0; }
+#cx-lines li {
+  display: flex; gap: 10px; padding: 9px 0;
+  font-size: 18px; line-height: 1.6; color: #e7eef9;
+}
+#cx-lines li b { color: #e8a33b; min-width: 24px; }
+#cx-tip {
+  margin-top: 16px; text-align: right; font-size: 15px; color: #e8a33b;
+}
+.cx-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 56px; height: 90px; font-size: 26px; cursor: pointer;
+  color: #e7eef9; background: linear-gradient(135deg, #5a6b82, #2e3a4c);
+  border: 2px solid #9fb2cc; border-radius: 6px;
+}
+.cx-arrow:hover { background: linear-gradient(135deg, #7388a6, #3a4a60); }
+#cx-prev { left: 3vw; }
+#cx-next { right: 3vw; }
+#cx-count {
+  position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%);
+  font-size: 18px; letter-spacing: 4px; color: #9fb2cc;
+}
+
 /* ---------- 存档 / 读档（参考《极限脱出》：电路板背景 + Click to Save 大按钮） ---------- */
 #screen-saves {
   background:
