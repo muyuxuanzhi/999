@@ -228,9 +228,8 @@
   import "./room3d.js";
   const el = document.getElementById("room3d");
   try {
+    // init 内部会在 GLB 模型加载完成后再置 __room3dReady 并派发 room3d-init
     window.Room3D.init(el);
-    window.__room3dReady = true;
-    window.dispatchEvent(new Event("room3d-init"));
   } catch (e) {
     el.innerHTML = '<div class="room-fallback">当前环境不支持 3D 预览（WebGL 不可用）</div>';
     console.warn("Room3D init failed:", e);

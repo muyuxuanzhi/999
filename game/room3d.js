@@ -1,11 +1,14 @@
 /* ============================================================
-   序幕关押室 · 全局房间模型（three.js 灰盒）
-   - 物品 = 几何方块 + 名称标签
-   - 黑暗：全黑，仅倒计时屏的红光；明亮：显示物品布局
-   对外接口：window.Room3D.init(container) / setLit / setView / setItemState
+   序幕关押室 · 全局房间模型（真实 GLB 模型）
+   - 模型：models/room_b7.glb（Blender 制作，已烘焙到游戏坐标）
+   - 节点命名：B7_<部件id>_NN，按前缀归组，可整组显隐
+   - 黑暗：灭掉所有灯，只留倒计时屏红光；明亮：显示房间与物品
+   - 剖切：相机绕到某面墙外侧时自动隐藏该墙及其挂件
+   对外接口：window.Room3D.init(container) / setLit / setView / setItemState / resize
    ============================================================ */
 
 import * as THREE from "./lib/three.module.min.js";
+import { GLTFLoader } from "./lib/GLTFLoader.js";
 
 // 物品布局来自 layout.js（与右侧 4:3 舞台的热点共用同一份数据）
 const LAYOUT = window.ROOM_LAYOUT;
@@ -13,30 +16,48 @@ const ROOM_W = LAYOUT.W;
 const ROOM_D = LAYOUT.D;
 const ROOM_H = LAYOUT.H;
 
+// 模型外框（Blender 导出后实测，单位与游戏坐标一致）
+const MODEL = { halfW: 5.79, halfD: 4.89, minZ: -4.89 };
+
 // 各游戏视角对应的镜头位置与注视点
+// 房间只有「后墙/左墙/右墙」三面墙、前面敞开（供摄像机从外部观察），
+// 因此 left/right 视角的镜头必须放在房间内部、偏向对侧，就近看向目标墙，
+// 不能放到对侧墙外穿过整个房间去看（否则中途的书架/桌子等家具会完全挡住镜头）。
 const VIEW_POSES = {
-  overview: { pos: [15, 11, 17], look: [0, 2.2, 0] },
-  floor: { pos: [0.01, 17, 6], look: [0, 0, 0] },
-  front: { pos: [0, 3.6, 17], look: [0, 3.4, -ROOM_D / 2] },
-  left: { pos: [17, 3.6, 0], look: [-ROOM_W / 2, 3.2, 0] },
-  right: { pos: [-17, 3.6, 0], look: [ROOM_W / 2, 3.2, 0] },
+  overview: { pos: [14, 10.5, 16], look: [0, 2.4, 0] },
+  floor: { pos: [0.01, 16.5, 5.6], look: [0, 0, 0] },
+  front: { pos: [0, 4.0, 13], look: [0, 3.6, -MODEL.halfD + 0.3] },
+  left: { pos: [3.2, 4.0, 2.4], look: [-MODEL.halfW + 0.3, 3.0, -1.4] },
+  right: { pos: [-2.6, 4.0, 2.6], look: [MODEL.halfW - 0.3, 3.2, -0.6] },
 };
 
-// 物品定义：id 与游戏热点 id 保持一致，数据见 layout.js
 const ITEMS = LAYOUT.items;
 
+// 贴在墙上的部件：相机绕到墙外侧时，连同挂件一起隐藏（剖切）
+const WALL_GROUPS = [
+  { wall: "backwall", members: ["backwall", "countdown", "clock", "painting"], test: (p) => p.z < MODEL.minZ + 0.3 },
+  { wall: "leftwall", members: ["leftwall", "switch", "fusebox"], test: (p) => p.x < -MODEL.halfW + 0.3 },
+  { wall: "rightwall", members: ["rightwall", "door", "panel"], test: (p) => p.x > MODEL.halfW - 0.3 },
+];
+
+// 灯灭时需要熄灭的自发光部件（吸顶灯）
+const LAMP_GROUPS = ["lightl", "lightr"];
+
 let renderer, scene, camera, container;
-let wallMats = [], lineMats = [];
-let ambient, roomLight, redGlow;
-const itemObjs = {};
+let ambient, hemi, keyLight, roomLight, redGlow;
+let modelRoot = null;
+let modelLoaded = false;
+const itemObjs = {}; // id -> { group, meshes, mats, label, def, basePos }
+const pendingStates = {}; // 模型加载前的状态缓存
 let lit = false;
+let currentViewName = "overview";
 
 // 轨道控制（自写，避免引入额外模块）
 const orbit = {
   target: new THREE.Vector3(),
   desiredTarget: new THREE.Vector3(),
-  radius: 20,
-  desiredRadius: 20,
+  radius: 22,
+  desiredRadius: 22,
   theta: 0, phi: 1,
   desiredTheta: 0, desiredPhi: 1,
   dragging: false, lastX: 0, lastY: 0,
@@ -77,100 +98,242 @@ function makeLabel(text) {
   tex.minFilter = THREE.LinearFilter;
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: false });
   const sp = new THREE.Sprite(mat);
-  sp.userData.ratio = w / 72; // 宽高比，resize 时按画布高度重算尺寸
+  sp.userData.ratio = w / 72;
   sp.scale.set((w / 72) * 0.04, 0.04, 1);
   sp.renderOrder = 10;
   return sp;
 }
 
-function buildRoom() {
-  // 地面
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.FrontSide });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D), floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
+// ---------------- 真实模型加载 ----------------
 
-  const grid = new THREE.GridHelper(ROOM_W, 12, 0x555a66, 0x2a2d35);
-  grid.position.y = 0.01;
-  scene.add(grid);
-  lineMats.push(grid.material);
-
-  // 三面墙（单面渲染，背对镜头时自动透明形成剖面）
-  const wallDefs = [
-    { pos: [0, ROOM_H / 2, -ROOM_D / 2], rotY: 0, w: ROOM_W },
-    { pos: [-ROOM_W / 2, ROOM_H / 2, 0], rotY: Math.PI / 2, w: ROOM_D },
-    { pos: [ROOM_W / 2, ROOM_H / 2, 0], rotY: -Math.PI / 2, w: ROOM_D },
-  ];
-  wallDefs.forEach((d) => {
-    const m = new THREE.MeshStandardMaterial({ color: 0x000000, side: THREE.FrontSide });
-    wallMats.push(m);
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(d.w, ROOM_H), m);
-    mesh.position.set(...d.pos);
-    mesh.rotation.y = d.rotY;
-    scene.add(mesh);
-  });
-  wallMats.push(floorMat);
-
-  // 房间轮廓线框
-  const box = new THREE.BoxGeometry(ROOM_W, ROOM_H, ROOM_D);
-  const edges = new THREE.EdgesGeometry(box);
-  const lm = new THREE.LineBasicMaterial({ color: 0x7a8294 });
-  const lines = new THREE.LineSegments(edges, lm);
-  lines.position.y = ROOM_H / 2;
-  scene.add(lines);
-  lineMats.push(lm);
+function groupIdOf(name) {
+  // B7_<id>_NN  ->  <id>
+  const m = /^B7_([a-z]+)_\d+$/.exec(name);
+  return m ? m[1] : null;
 }
 
-function buildItems() {
-  ITEMS.forEach((it) => {
-    const group = new THREE.Group();
-    let geo;
-    if (it.shape === "cyl") {
-      geo = new THREE.CylinderGeometry(it.size[0], it.size[0], it.size[2], 24);
-    } else if (it.shape === "disc") {
-      geo = new THREE.CylinderGeometry(1, 1, it.size[1], 32);
-    } else {
-      geo = new THREE.BoxGeometry(...it.size);
+function registerItem(id, mesh, def) {
+  let o = itemObjs[id];
+  if (!o) {
+    o = itemObjs[id] = {
+      group: new THREE.Group(),
+      meshes: [],
+      mats: [],
+      def,
+      basePos: new THREE.Vector3(),
+      hidden: false,
+    };
+    scene.add(o.group);
+  }
+  // 材质按网格克隆，避免 glow 影响同材质的其他物体
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  const cloned = mats.map((m) => {
+    const c = m.clone();
+    c.userData.baseEmissive = c.emissive ? c.emissive.clone() : null;
+    c.userData.baseEmissiveIntensity = c.emissiveIntensity !== undefined ? c.emissiveIntensity : 1;
+    return c;
+  });
+  mesh.material = Array.isArray(mesh.material) ? cloned : cloned[0];
+
+  // 保留世界变换，改挂到物品组下
+  mesh.matrixAutoUpdate = true;
+  const wp = new THREE.Vector3();
+  const wq = new THREE.Quaternion();
+  const ws = new THREE.Vector3();
+  mesh.matrixWorld.decompose(wp, wq, ws);
+  mesh.parent && mesh.parent.remove(mesh);
+  o.group.add(mesh);
+  mesh.position.copy(wp);
+  mesh.quaternion.copy(wq);
+  mesh.scale.copy(ws);
+
+  o.meshes.push(mesh);
+  o.mats.push(...cloned);
+}
+
+function buildLabels() {
+  // 只给布局数据里登记的「可交互物品」做标签；房间结构件（墙/地/灯/角色等）不挂标签
+  Object.entries(itemObjs).forEach(([id, o]) => {
+    const box = new THREE.Box3();
+    o.meshes.forEach((m) => box.expandByObject(m));
+    const center = box.getCenter(new THREE.Vector3());
+    o.basePos.copy(center);
+
+    const def = LAYOUT.byId[id];
+    if (!def) return; // 非交互物品（ground/backwall/leftwall/rightwall/lightl/lightr/character）不生成标签
+    const label = makeLabel(def.label);
+    const top = box.max.y;
+    label.position.set(center.x, top + 0.55, center.z);
+    scene.add(label);
+    o.label = label;
+  });
+}
+
+function loadModel() {
+  const loader = new GLTFLoader();
+  loader.load(
+    "./models/room_b7.glb",
+    (gltf) => {
+      modelRoot = gltf.scene;
+      const meshes = [];
+      modelRoot.traverse((n) => {
+        if (n.isMesh) {
+          n.castShadow = false;
+          n.receiveShadow = false;
+          if (n.geometry) n.geometry.computeBoundingSphere();
+          meshes.push(n);
+        }
+      });
+
+      // 先按前缀归组
+      meshes.forEach((m) => {
+        const id = groupIdOf(m.name);
+        const def = LAYOUT.byId[id] || { label: id, color: 0xffffff };
+        if (id) registerItem(id, m, def);
+        else scene.add(m);
+      });
+
+      buildLabels();
+      hideMissingGroups();
+      modelLoaded = true;
+
+      // 应用加载前缓存的状态与视角
+      if (pendingStates.lit !== undefined) lit = pendingStates.lit;
+      Object.entries(pendingStates.items || {}).forEach(([id, st]) => setItemState(id, st));
+      applyLit();
+      setView(currentViewName);
+
+      window.__room3dReady = true;
+      window.dispatchEvent(new Event("room3d-init"));
+    },
+    undefined,
+    (err) => {
+      console.warn("room_b7.glb 加载失败，回退到灰盒模型：", err);
+      buildFallback();
+      modelLoaded = true;
+      applyLit();
+      setView(currentViewName);
+      window.__room3dReady = true;
+      window.dispatchEvent(new Event("room3d-init"));
     }
-    const mat = new THREE.MeshStandardMaterial({
-      color: it.color,
-      emissive: it.emissive ? it.color : 0x000000,
-      emissiveIntensity: it.emissive ? 1.2 : 0,
-    });
+  );
+}
+
+// 模型里没有对应网格的布局项（如 future 扩展）从场景移除
+function hideMissingGroups() {
+  ITEMS.forEach((it) => {
+    if (!itemObjs[it.id]) return;
+  });
+}
+
+// ---------------- 灰盒回退（GLB 不可用时） ----------------
+
+function buildFallback() {
+  ITEMS.forEach((it) => {
+    const geo =
+      it.shape === "cyl"
+        ? new THREE.CylinderGeometry(it.size[0], it.size[0], it.size[2], 24)
+        : it.shape === "disc"
+        ? new THREE.CylinderGeometry(1, 1, it.size[1], 32)
+        : new THREE.BoxGeometry(...it.size);
+    const mat = new THREE.MeshStandardMaterial({ color: it.color });
     const mesh = new THREE.Mesh(geo, mat);
     if (it.shape === "cyl") mesh.rotation.x = Math.PI / 2;
     if (it.shape === "disc") mesh.scale.set(it.size[0], 1, it.size[2]);
-    group.add(mesh);
+    mesh.position.set(...it.pos);
+    registerItem(it.id, mesh, it);
 
     const label = makeLabel(it.label);
     const topY = it.shape === "disc" ? 0.5 : it.size[1] / 2 + 0.55;
-    label.position.set(it.labelOffset ? it.labelOffset[0] : 0, topY + (it.labelOffset ? it.labelOffset[1] : 0), 0);
-    group.add(label);
-
-    group.position.set(...it.pos);
-    scene.add(group);
-    itemObjs[it.id] = { group, mesh, label, def: it, mat };
+    label.position.set(
+      it.pos[0] + (it.labelOffset ? it.labelOffset[0] : 0),
+      it.pos[1] + topY + (it.labelOffset ? it.labelOffset[1] : 0),
+      it.pos[2]
+    );
+    scene.add(label);
+    itemObjs[it.id].label = label;
   });
+}
+
+// ---------------- 灯光与明暗 ----------------
+
+function buildLights() {
+  ambient = new THREE.AmbientLight(0xffffff, 0);
+  hemi = new THREE.HemisphereLight(0xdfe8ff, 0x30343c, 0);
+  keyLight = new THREE.DirectionalLight(0xffffff, 0);
+  keyLight.position.set(6, 14, 10);
+
+  roomLight = new THREE.PointLight(0xfff3e0, 0, 40, 2);
+  roomLight.position.set(0, ROOM_H - 0.7, 0);
+
+  redGlow = new THREE.PointLight(0xd13b2b, 0, 18, 2);
+  redGlow.position.set(0, 5.6, -ROOM_D / 2 + 0.6);
+
+  scene.add(ambient, hemi, keyLight, roomLight, redGlow);
 }
 
 function applyLit() {
-  const wallColor = lit ? 0xb9bcc2 : 0x000000;
-  wallMats.forEach((m, i) => {
-    const isFloor = i === wallMats.length - 1;
-    m.color.setHex(lit ? (isFloor ? 0x6a6d75 : wallColor) : 0x000000);
+  const on = lit;
+  ambient.intensity = on ? 0.85 : 0.02;
+  hemi.intensity = on ? 0.7 : 0.0;
+  keyLight.intensity = on ? 1.15 : 0.05;
+  roomLight.intensity = on ? 1.6 : 0;
+  redGlow.intensity = on ? 0 : 2.4;
+
+  // 吸顶灯的自发光随开关变化
+  LAMP_GROUPS.forEach((id) => {
+    const o = itemObjs[id];
+    if (!o) return;
+    o.mats.forEach((m) => {
+      if (!m.emissive) return;
+      m.emissiveIntensity = on ? 1.0 : 0.0;
+    });
   });
-  lineMats.forEach((m) => m.color && m.color.setHex(lit ? 0x8a93a6 : 0x4a5062));
-  ambient.intensity = lit ? 0.85 : 0.0;
-  roomLight.intensity = lit ? 1.0 : 0.0;
-  redGlow.intensity = lit ? 0.0 : 2.2;
 
   Object.values(itemObjs).forEach((o) => {
-    const show = lit || !!o.def.alwaysOn;
-    o.group.visible = show && !o.hidden;
-    o.label.visible = lit; // 黑暗时倒计时屏也不显示名称
+    if (!o.group) return;
+    o.group.visible = on && !o.hidden;
+    if (o.label) o.label.visible = on;
   });
-  scene.background = new THREE.Color(lit ? 0x15171c : 0x050506);
+  // 黑暗时倒计时屏仍然可见（红光）
+  const cd = itemObjs["countdown"];
+  if (cd) {
+    cd.group.visible = !cd.hidden;
+    if (cd.label) cd.label.visible = false;
+  }
+  // 配电盒与开关在黑暗中也保留，供玩家操作
+  ["fusebox", "switch"].forEach((id) => {
+    const o = itemObjs[id];
+    if (o) o.group.visible = !o.hidden;
+  });
+
+  scene.background = new THREE.Color(on ? 0x15171c : 0x050506);
 }
+
+// ---------------- 剖切 ----------------
+
+function updateCutaway() {
+  if (!modelLoaded) return;
+  const p = camera.position;
+  WALL_GROUPS.forEach((g) => {
+    const shouldHide = g.test(p);
+    g.members.forEach((id) => {
+      const o = itemObjs[id];
+      if (!o) return;
+      o.cut = shouldHide;
+      o.group.visible = !shouldHide && (lit || id === "countdown" || id === "fusebox" || id === "switch") && !o.hidden;
+    });
+    // 黑暗时倒计时/开关/配电盒仍显示
+    if (shouldHide) {
+      g.members.forEach((id) => {
+        const o = itemObjs[id];
+        if (o) o.group.visible = false;
+      });
+    }
+  });
+}
+
+// ---------------- 相机 ----------------
 
 function resize() {
   if (!renderer || !container) return;
@@ -179,16 +342,15 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  // 标签按像素高度固定（约 22px），画布大小变化时同步缩放
   const labelH = 22 / (h * 1.3);
   Object.values(itemObjs).forEach((o) => {
+    if (!o.label) return;
     const r = o.label.userData.ratio;
     o.label.scale.set(r * labelH, labelH, 1);
   });
 }
 
 function updateCamera(dt) {
-  // 按时间做阻尼，帧率高低都表现一致
   const k = 1 - Math.exp(-8 * Math.min(dt, 0.1));
   orbit.target.lerp(orbit.desiredTarget, k);
   orbit.radius += (orbit.desiredRadius - orbit.radius) * k;
@@ -212,6 +374,7 @@ function animate(t) {
   const dt = lastT ? (t - lastT) / 1000 : 0.016;
   lastT = t;
   updateCamera(dt);
+  updateCutaway();
   renderer.render(scene, camera);
 }
 
@@ -240,7 +403,7 @@ function bindControls(canvas) {
     "wheel",
     (e) => {
       e.preventDefault();
-      orbit.desiredRadius = Math.min(32, Math.max(8, orbit.desiredRadius + e.deltaY * 0.015));
+      orbit.desiredRadius = Math.min(34, Math.max(9, orbit.desiredRadius + e.deltaY * 0.015));
     },
     { passive: false }
   );
@@ -248,6 +411,7 @@ function bindControls(canvas) {
 }
 
 function setView(name) {
+  currentViewName = name;
   const pose = VIEW_POSES[name] || VIEW_POSES.overview;
   const s = poseToSpherical(pose);
   orbit.desiredTarget.copy(s.target);
@@ -258,23 +422,44 @@ function setView(name) {
 
 function setLit(v) {
   lit = !!v;
+  pendingStates.lit = lit;
   if (scene) applyLit();
 }
 
-// 物品状态：visible / glow / moveTo
+// 物品状态：hidden / glow / pos
 function setItemState(id, state) {
   const o = itemObjs[id];
-  if (!o) return;
+  if (!o) {
+    pendingStates.items = pendingStates.items || {};
+    pendingStates.items[id] = Object.assign(pendingStates.items[id] || {}, state);
+    return;
+  }
   if (state.hidden !== undefined) {
     o.hidden = !!state.hidden;
-    o.group.visible = (lit || !!o.def.alwaysOn) && !o.hidden;
+    o.group.visible = !o.hidden && (lit || id === "countdown" || id === "fusebox" || id === "switch") && !o.cut;
   }
   if (state.glow !== undefined) {
-    o.mat.emissive.setHex(state.glow ? o.def.color : 0x000000);
-    o.mat.emissiveIntensity = state.glow ? 0.9 : 0;
+    const color = (o.def && o.def.color) || 0xffffff;
+    o.mats.forEach((m) => {
+      if (!m.emissive) return;
+      if (state.glow) {
+        m.emissive.setHex(color);
+        m.emissiveIntensity = 1.1;
+      } else if (m.userData.baseEmissive) {
+        m.emissive.copy(m.userData.baseEmissive);
+        m.emissiveIntensity = m.userData.baseEmissiveIntensity;
+      } else {
+        m.emissive.setHex(0x000000);
+        m.emissiveIntensity = 0;
+      }
+    });
   }
-  if (state.pos) {
-    o.group.position.set(...state.pos);
+  if (state.pos && o.def && o.def.pos) {
+    const dx = state.pos[0] - o.def.pos[0];
+    const dy = state.pos[1] - o.def.pos[1];
+    const dz = state.pos[2] - o.def.pos[2];
+    o.group.position.set(dx, dy, dz);
+    if (o.label) o.label.position.x = o.basePos.x + dx;
   }
 }
 
@@ -282,6 +467,7 @@ function init(el) {
   container = el;
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
   renderer.domElement.style.display = "block";
@@ -289,18 +475,11 @@ function init(el) {
   container.appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  scene.background = new THREE.Color(0x050506);
+  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
 
-  ambient = new THREE.AmbientLight(0xffffff, 0);
-  roomLight = new THREE.PointLight(0xffffff, 0, 60);
-  roomLight.position.set(0, ROOM_H - 0.6, 0);
-  redGlow = new THREE.PointLight(0xd13b2b, 2.2, 14);
-  redGlow.position.set(0, 5.4, -ROOM_D / 2 + 1.2);
-  scene.add(ambient, roomLight, redGlow);
-
-  buildRoom();
-  buildItems();
-  applyLit();
+  buildLights();
+  loadModel();
 
   const s = poseToSpherical(VIEW_POSES.overview);
   orbit.target.copy(s.target);

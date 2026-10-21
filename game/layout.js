@@ -10,30 +10,33 @@
 (function () {
   "use strict";
 
-  const W = 12; // 宽（x）
-  const D = 12; // 深（z）
+  // 房间尺寸取自全局模型 room_b7.glb 实测外包（Blender 建模，1:1 烘焙到游戏坐标）
+  const W = 11.6; // 宽（x）
+  const D = 9.8; // 深（z）
   const H = 7; // 高（y）
 
   // size 约定：[x 向边长, y 向边长, z 向边长]；cyl 为 [半径, 半径, 厚度]；disc 为 [x 半径, 厚度, z 半径]
+  // 所有 pos / size 均由模型网格包围盒换算得到（见 room_b7.glb），改模型后需同步
   const items = [
     // ---- 后墙（front 视角）----
-    { id: "countdown", label: "倒计时屏", view: "front", color: 0xd13b2b, size: [2.4, 1.6, 0.25], pos: [0, 6.0, -D / 2 + 0.2], emissive: true, alwaysOn: true },
-    { id: "clock", label: "时钟", view: "front", color: 0x4a6fd4, shape: "cyl", size: [0.9, 0.9, 0.25], pos: [2.6, 3.6, -D / 2 + 0.2] },
-    { id: "painting", label: "画", view: "front", color: 0x9d7bd8, size: [1.8, 2.2, 0.2], pos: [-3.2, 3.6, -D / 2 + 0.2], fallenPos: [-5.0, 1.1, -D / 2 + 0.7] },
+    { id: "countdown", label: "倒计时屏", view: "front", color: 0xd13b2b, size: [1.1, 0.4, 0.15], pos: [0, 5.63, -4.54], emissive: true, alwaysOn: true },
+    { id: "clock", label: "时钟", view: "front", color: 0x4a6fd4, shape: "cyl", size: [0.35, 0.35, 0.09], pos: [2.37, 4.88, -4.53] },
+    { id: "painting", label: "画", view: "front", color: 0x9d7bd8, size: [0.8, 1.0, 0.14], pos: [-2.37, 4.01, -4.53], fallenPos: [-4.2, 0.5, -3.9] },
 
-    // ---- 左墙（left 视角）：灯开关靠前（近配电盒），书架居中偏后 ----
-    { id: "switch", label: "灯开关", view: "left", color: 0xe8563a, size: [0.25, 0.9, 0.6], pos: [-W / 2 + 0.15, 3.0, 3.4] },
-    { id: "bookshelf", label: "书架", view: "left", color: 0x9a6b2f, size: [1.0, 4.4, 2.2], pos: [-W / 2 + 0.5, 2.2, -0.8] },
+    // ---- 左墙（left 视角）：灯开关靠前，书架居中偏后，配电盒靠前下方 ----
+    { id: "switch", label: "灯开关", view: "left", color: 0xe8563a, size: [0.06, 0.25, 0.17], pos: [-5.46, 2.76, 0.77] },
+    { id: "bookshelf", label: "书架", view: "left", color: 0x9a6b2f, size: [0.8, 4.99, 2.0], pos: [-5.09, 2.51, -2.1] },
 
     // ---- 右墙（right 视角）----
-    { id: "door", label: "门", view: "right", color: 0x3b2a1a, size: [0.25, 4.2, 2.8], pos: [W / 2 - 0.15, 2.1, -2.2] },
-    { id: "panel", label: "电子面板", view: "right", color: 0x4ade80, size: [0.25, 1.4, 1.05], pos: [W / 2 - 0.15, 3.2, 1.6] },
+    { id: "door", label: "门", view: "right", color: 0x3b2a1a, size: [0.4, 5.24, 2.62], pos: [5.59, 2.63, -2.35] },
+    { id: "panel", label: "电子面板", view: "right", color: 0x4ade80, size: [0.15, 0.7, 0.45], pos: [5.42, 3.38, -0.6] },
 
     // ---- 地面（floor 视角）----
-    { id: "fusebox", label: "配电盒", view: "floor", color: 0x6b7280, size: [1.5, 1.4, 1.3], pos: [-3.8, 0.7, 2.6] },
-    { id: "desk", label: "桌子", hsLabel: "桌子 / 抽屉", view: "floor", color: 0xa67b5b, size: [2.8, 1.1, 2.4], pos: [0.4, 0.55, 0], labelOffset: [-1.0, 0.1] },
-    { id: "badge", label: "工牌", view: "floor", color: 0xf59e0b, size: [0.9, 0.06, 0.9], pos: [1.45, 1.14, 0.1], labelOffset: [0.5, 0.9] },
-    { id: "puddle", label: "水渍", view: "floor", color: 0x2ec4b6, shape: "disc", size: [1.5, 0.03, 1.15], pos: [3.2, 0.03, 2.8] },
+    // 配电盒在模型里挂在左墙下部，但开场黑暗中它是第一个可交互物，必须留在「地面」视角
+    { id: "fusebox", label: "配电盒", view: "floor", color: 0x6b7280, size: [0.9, 0.65, 0.9], pos: [-5.0, 1.14, 4.02] },
+    { id: "desk", label: "桌子", hsLabel: "桌子 / 抽屉", view: "floor", color: 0xa67b5b, size: [2.99, 1.87, 1.58], pos: [0, 0.95, 1.04], labelOffset: [-1.0, 0.1] },
+    { id: "badge", label: "工牌", view: "floor", color: 0xf59e0b, size: [0.25, 0.03, 0.37], pos: [-0.37, 1.9, 1.03], labelOffset: [0.5, 0.9] },
+    { id: "puddle", label: "水渍", view: "floor", color: 0x2ec4b6, shape: "disc", size: [0.735, 0.03, 0.41], pos: [3.71, 0.02, 3.52] },
   ];
 
   const byId = {};
