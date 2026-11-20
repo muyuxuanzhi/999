@@ -184,60 +184,153 @@
     // ---------------- 机房线 ----------------
     {
       id: "e_server", kind: "esc", title: "机房（闸·耳）", x: COL.server, row: 2, parents: ["n_door"],
-      desc: "主题「静」。机器的声音被吃掉了，四个机关，员工通道 4 位密码锁。",
+      desc: "主题「静」。机器的声音被吃掉了，四个机关，员工通道 4 位密码锁。环形走廊布局，绕一圈回到入口。",
       esc: {
         intro: [
-          N("[机房。成排的机柜没入看不见的深处，风扇在转，指示灯在闪，却听不到一丝机械声。]"),
+          N("[机房。成排的机柜没入看不见的深处，像一条没有尽头的金属隧道。风扇在转，指示灯在闪，却听不到一丝机械声。]"),
           S("コード零", "散热扇在满转，分贝计是零。这不合理。……不，是这层楼把声音吃掉了。"),
           N("~氷川律在角落写着什么，写完，举起纸条给你看。"),
-          K("橘鏡", "人声还在，机器的声音却一个都不剩。"),
+          N("[纸条上写着：「他、在、说、什、么。」]"),
+          K("橘鏡", "……他听不见零说话，只能看口型猜。"),
+          N("[你接过笔，在纸条背面写下：「声音被吃掉了。只有灯。」]"),
+          N("[律看完，愣了一下，又低头，慢慢点了点头。]"),
+          N("[走廊呈环形，绕机房一圈，入口与员工通道的出口在同一侧——先去看看四周的机关。]"),
         ],
-        mechs: [
-          {
-            label: "漂浮机柜", rect: [5, 10, 26, 28], color: "#6b7280",
-            lines: [
-              N("~一台机柜漂浮在半空，得踮脚、借漂浮的键盘垫一下，才能凑近看灯。"),
-              N("[七个指示灯，从左到右：绿　绿　灭　绿　灭　绿　灭。风扇在转，没有声音。]"),
+        defaultView: "gate",
+        views: {
+          gate: {
+            name: "环形走廊 · 入口与员工通道",
+            items: [
+              {
+                type: "npc", id: "npc_lu_gate", label: "氷川律", name: "律",
+                color: "#7EC8E3", rect: [8, 50, 16, 26],
+                lines: [
+                  N("~氷川律仍蹲在角落，面前摆着那本写了一半的小本子。"),
+                  N("[他翻开本子，又递来一张新纸条：「这里、好安静、写字、都怕吵到、什么。」]"),
+                  K("橘鏡", "……他是失聪的人里，少数会主动开玩笑的那种。"),
+                  N("[你笑了一下，在纸条上画了个「OK」的手势图案。律也跟着笑了笑，低头继续写。]"),
+                ],
+              },
+              {
+                type: "mech", id: "terminal", label: "系统档案库终端", color: "#1fb6c9", rect: [40, 36, 22, 32],
+                lines: [
+                  N("~一台终端屏幕漂浮在墙角，镜像的文字一行一行倒着浮出来，却锁着，边缘闪着红光。"),
+                  K("橘鏡", "系统档案库……看来得先解开这间房的密码，它才会打开。"),
+                ],
+              },
+            ],
+            door: {
+              label: "员工通道（密码锁）", rect: [68, 40, 26, 40],
+              hint: "听见的，都不是答案。",
+              password: "4023",
+              wrong: [
+                "「滴。」没有反应。连提示音都没有。",
+                "「滴。」没有反应。门上的小字像是在说：别听。",
+                "屏幕上跳出一行字，又被抹掉：『看。不要听。』",
+              ],
+              clear: [
+                N("[员工通道的门在绝对的寂静里滑开，没有一声响。]"),
+                K("橘鏡", "安静得连自己的心跳都听得见。"),
+              ],
+            },
+          },
+          west: {
+            name: "左侧 · 静音服务器机柜",
+            items: [
+              {
+                type: "mech", id: "mech1", label: "漂浮机柜", color: "#6b7280", rect: [28, 12, 44, 40],
+                lines: [
+                  N("~一台机柜漂浮在半空，得踮脚、借漂浮的键盘垫一下，才能凑近看灯。"),
+                  N("[七个指示灯，从左到右：绿　绿　灭　绿　灭　绿　灭。风扇在转，没有声音。]"),
+                  K("橘鏡", "常亮的绿灯……一、二、三、四个。"),
+                ],
+              },
+              {
+                type: "npc", id: "npc_ling_west", label: "鉄井鈴", name: "鈴",
+                color: "#6B7280", rect: [8, 58, 16, 24],
+                lines: [
+                  N("~鉄井鈴沉默地站在机柜旁，忽然伸出手，对着绿灯比了个「4」，又轻轻摇头。"),
+                  K("橘鏡", "「4」……还是「这里不对」？她到底是在回答，还是在提醒我什么。"),
+                ],
+              },
+              {
+                type: "npc", id: "npc_qing_west", label: "天祐晴", name: "晴",
+                color: "#FFE066", rect: [72, 58, 16, 24],
+                lines: [
+                  S("天祐晴", "灯亮着却没声音，好怪——不过没关系，我运气好，肯定能凑对密码！"),
+                  N("[他随手按了个键，机柜「嗡」地闪了一下，又归于寂静。]"),
+                ],
+              },
             ],
           },
-          {
-            label: "镜像屏幕", rect: [38, 8, 26, 24], color: "#4a6fd4",
-            lines: [
-              N("~一块显示屏漂浮在半空，画面镜像加倒置，像隔着水看。"),
-              N("[音量条一格都没亮。旁边的数字被镜像过，像是一个倒着的圆。]"),
-              S("コード零", "静音。音量格是空的。这个我不用看第二遍。"),
+          north: {
+            name: "深处 · 镜像屏幕与无扇叶风扇",
+            items: [
+              {
+                type: "mech", id: "mech2", label: "镜像屏幕", color: "#4a6fd4", rect: [5, 12, 40, 38],
+                lines: [
+                  N("~一块显示屏漂浮在半空，画面镜像加倒置，像隔着水看。"),
+                  N("[音量条一格都没亮。旁边的数字被镜像过，像是一个倒着的圆。]"),
+                  S("コード零", "镜像渲染。画面是反的。要看真实值，得……反着读。或者，相信那个「0」——静音，就是零分贝。"),
+                ],
+              },
+              {
+                type: "mech", id: "mech3", label: "无扇叶风扇", color: "#9d7bd8", rect: [55, 12, 40, 38],
+                lines: [
+                  N("~一台散热风扇悬在半空，一动不动。扇叶不转，反而能数得清楚。"),
+                  N("[扇叶：一片，两片。……就这两片。]"),
+                ],
+              },
+              {
+                type: "npc", id: "npc_ling_north", label: "鉄井鈴", name: "鈴",
+                color: "#6B7280", rect: [78, 58, 16, 24],
+                lines: [
+                  N("~鉄井鈴难得开口，声音很低。"),
+                  S("鉄井鈴", "风扇……只有两片叶。少了。这台机，是被谁拆过。"),
+                  K("橘鏡", "两片扇叶。这间房里，连「转」都停了。"),
+                ],
+              },
+              {
+                type: "npc", id: "npc_shiori_north", label: "継井栞", name: "栞",
+                color: "#A67B5B", rect: [5, 58, 16, 24],
+                lines: [
+                  N("~継井栞凑得极近，几乎贴到镜像屏幕上，用气音说话。"),
+                  S("継井栞", "音、音量……是空的。"),
+                  N("[她的声音很轻——她听不见自己说得多响，像怕打破这间房的安静。]"),
+                  N("[你朝她比了个「OK」的手势，又指指屏幕上的「0」，她看懂后，轻轻点头。]"),
+                ],
+              },
             ],
           },
-          {
-            label: "无扇叶风扇", rect: [69, 14, 25, 28], color: "#9d7bd8",
-            lines: [
-              N("~一台散热风扇悬在半空，一动不动。扇叶不转，反而能数得清楚。"),
-              N("[扇叶：一片，两片。……就这两片。]"),
-              S("鉄井鈴", "……少了。"),
+          east: {
+            name: "右侧 · 静音警报灯",
+            items: [
+              {
+                type: "mech", id: "mech4", label: "静音警报灯", color: "#d13b2b", rect: [32, 14, 36, 38],
+                lines: [
+                  N("~墙上的红色警报灯在闪，本应响铃，此刻一点声音也没有。"),
+                  N("[亮一下，灭。一秒，两秒，三秒，再亮一下。循环往复。]"),
+                  N("~氷川律完全没察觉警报，仍低头在本子上写字。"),
+                  N("~継井栞却盯着红灯，脸色发白，写字的手停了。"),
+                  S("継井栞", "有、有警报……它在闪，可我听不见。你们……谁听得见吗？"),
+                  S("コード零", "红灯。机房过载预警。声音被吃掉了，只有灯。听不见的人，会错过它——现在，看着灯，关掉过载的那台机。"),
+                  N("[零在终端上飞快打了一行字，转向律和栞：「看灯。别听。声音没了。」]"),
+                  S("天祐晴", "诶，是不是这台在冒烟？……没有声音，一点都没有。"),
+                  K("橘鏡", "警报靠声音报哪台机过载——可这间房，没有声音。只能看。"),
+                ],
+              },
             ],
           },
-          {
-            label: "静音警报灯", rect: [8, 52, 27, 26], color: "#d13b2b",
-            lines: [
-              N("~墙上的红色警报灯在闪，本应响铃，此刻一点声音也没有。"),
-              N("[亮一下，灭。一秒，两秒，三秒，再亮一下。循环往复。]"),
-              S("天祐晴", "咦，这个灯是不是在报警？……可是我什么也听不见呀。"),
-            ],
-          },
-        ],
-        door: {
-          label: "员工通道（密码锁）", rect: [58, 52, 30, 38],
-          hint: "听见的，都不是答案。",
-          password: "4023",
-          wrong: [
-            "「滴。」没有反应。连提示音都没有。",
-            "「滴。」没有反应。门上的小字像是在说：别听。",
-            "屏幕上跳出一行字，又被抹掉：『看。不要听。』",
+        },
+        nav: {
+          gate: [
+            { to: "west", dir: "left", label: "◀ 左侧机柜区" },
+            { to: "north", dir: "up", label: "▲ 深处机房" },
+            { to: "east", dir: "right", label: "右侧警报灯 ▶" },
           ],
-          clear: [
-            N("[员工通道的门在绝对的寂静里滑开，没有一声响。]"),
-            K("橘鏡", "安静得连自己的心跳都听得见。"),
-          ],
+          west: [{ to: "gate", dir: "right", label: "回到通道 ▶" }],
+          north: [{ to: "gate", dir: "down", label: "▼ 回到通道" }],
+          east: [{ to: "gate", dir: "left", label: "◀ 回到通道" }],
         },
       },
     },
@@ -772,6 +865,7 @@
     np.seen = {};
     np.wrong = 0;
     np.doorSeen = false;
+    np.curView = n.esc && n.esc.views ? (n.esc.defaultView || Object.keys(n.esc.views)[0]) : null;
     $("node-name").textContent = n.title;
     $("node-badge").textContent = n.tbd ? "占位节点" : "占位测试关";
     $("btn-node-hint").style.display = n.esc ? "inline-block" : "none";
@@ -853,17 +947,97 @@
   }
 
   // ---------------- ESC 房间舞台 ----------------
+  const FREE_ROAM_HINT = "（点击场景里的物件 / 人物调查；调查完，试着输入出口的密码。）";
+
   function showEscStage(n) {
+    if (n.esc.views) renderEscView(n);
+    else showEscStageFlat(n);
+  }
+
+  function showEscStageFlat(n) {
     const hs = $("node-hotspots");
     hs.innerHTML = "";
     const esc = n.esc;
-    esc.mechs.forEach((m, i) => hs.appendChild(makeHotspot(m.label, m.rect, m.color, () => onMech(m, i))));
+    esc.mechs.forEach((m, i) => hs.appendChild(makeHotspot(m.label, m.rect, m.color, () => onMech(m, "m" + i))));
     const d = esc.door;
     const door = makeHotspot(d.label, d.rect, "#3b2a1a", () => onDoor(n));
     door.classList.add("np-door");
     hs.appendChild(door);
     setHotspotsEnabled(true);
-    setFree("（点击场景里的物件调查；调查完，试着输入出口的密码。）");
+    setFree(FREE_ROAM_HINT);
+  }
+
+  // ---------------- 多视角 ESC 房间（闸2·机房 等） ----------------
+  function curDoorOf(n) {
+    if (n.esc.views) {
+      const v = n.esc.views[np.curView];
+      return v && v.door;
+    }
+    return n.esc.door;
+  }
+
+  function renderEscView(n) {
+    const hs = $("node-hotspots");
+    hs.innerHTML = "";
+    const esc = n.esc;
+    const v = esc.views[np.curView];
+
+    const label = document.createElement("div");
+    label.className = "np-view-label";
+    label.textContent = v.name || "";
+    hs.appendChild(label);
+
+    (v.items || []).forEach((item) => {
+      if (item.type === "npc") {
+        hs.appendChild(makeNpcMarker(item, () => onMech(item, item.id)));
+      } else {
+        hs.appendChild(makeHotspot(item.label, item.rect, item.color, () => onMech(item, item.id)));
+      }
+    });
+
+    if (v.door) {
+      const door = makeHotspot(v.door.label, v.door.rect, "#3b2a1a", () => onDoor(n));
+      door.classList.add("np-door");
+      hs.appendChild(door);
+    }
+
+    (esc.nav && esc.nav[np.curView] || []).forEach((navItem) => {
+      const btn = document.createElement("div");
+      btn.className = "np-view-nav np-view-nav-" + navItem.dir;
+      btn.textContent = navItem.label;
+      positionNavBtn(btn, navItem.dir);
+      btn.addEventListener("click", () => {
+        np.curView = navItem.to;
+        renderEscView(n);
+      });
+      hs.appendChild(btn);
+    });
+
+    setHotspotsEnabled(true);
+    setFree(FREE_ROAM_HINT);
+  }
+
+  function positionNavBtn(el, dir) {
+    if (dir === "left") { el.style.left = "1%"; el.style.top = "46%"; }
+    else if (dir === "right") { el.style.right = "1%"; el.style.top = "46%"; el.style.left = "auto"; }
+    else if (dir === "up") { el.style.left = "50%"; el.style.top = "2%"; el.style.transform = "translateX(-50%)"; }
+    else { el.style.left = "50%"; el.style.bottom = "2%"; el.style.top = "auto"; el.style.transform = "translateX(-50%)"; }
+  }
+
+  function makeNpcMarker(item, onClick) {
+    const el = document.createElement("div");
+    el.className = "np-npc";
+    el.style.left = item.rect[0] + "%";
+    el.style.top = item.rect[1] + "%";
+    el.style.width = item.rect[2] + "%";
+    el.style.height = item.rect[3] + "%";
+    el.style.background = item.color;
+    const name = document.createElement("span");
+    name.className = "np-npc-label";
+    name.textContent = item.name || item.label;
+    el.appendChild(name);
+    el.addEventListener("click", onClick);
+    return el;
   }
 
   function makeHotspot(label, rect, color, onClick) {
@@ -881,13 +1055,14 @@
     return el;
   }
 
-  function onMech(m, i) {
-    np.seen[i] = true;
-    npPlay(m.lines, () => setFree("（点击场景里的物件调查；调查完，试着输入出口的密码。）"));
+  function onMech(m, key) {
+    np.seen[key] = true;
+    npPlay(m.lines, () => setFree(FREE_ROAM_HINT));
   }
 
   function onDoor(n) {
-    const d = n.esc.door;
+    const d = curDoorOf(n);
+    if (!d) return;
     if (!np.doorSeen) {
       np.doorSeen = true;
       npPlay(
@@ -923,7 +1098,7 @@
     $("kp-close").addEventListener("click", () => {
       box.style.display = "none";
       setHotspotsEnabled(true);
-      setFree("（点击场景里的物件调查；调查完，试着输入出口的密码。）");
+      setFree(FREE_ROAM_HINT);
     });
     box.style.display = "flex";
     setHotspotsEnabled(false);
@@ -947,7 +1122,7 @@
     updateKpDisplay();
   }
   function submitKeypad(n) {
-    const d = n.esc.door;
+    const d = curDoorOf(n);
     if (kp === d.password) {
       $("node-lock").style.display = "none";
       visit(n.id);
