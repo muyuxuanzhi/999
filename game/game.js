@@ -1102,6 +1102,24 @@
     }
     const flowBtn = document.getElementById("btn-end-flowchart");
     if (flowBtn) flowBtn.style.display = "inline-block";
+
+    // 选门结局 → 直接进入对应的逃脱房间（第一轮三扇闸已实装）
+    const ROOM_OF = { tea: "e_tea", server: "e_server", dark: "e_dark" };
+    const enterBtn = document.getElementById("btn-enter-room");
+    const target = ROOM_OF[key];
+    if (enterBtn) {
+      if (target) {
+        enterBtn.style.display = "inline-block";
+        enterBtn.textContent = "进入" + (ENDING_NAMES[key] || "房间");
+        enterBtn.onclick = () => {
+          if (window.Flow) window.Flow.enterNode(target);
+        };
+      } else {
+        enterBtn.style.display = "none";
+        enterBtn.onclick = null;
+      }
+    }
+
     showScreen("end");
   }
 

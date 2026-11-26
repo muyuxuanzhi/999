@@ -71,7 +71,7 @@
 
     // ---------------- 茶水间线 ----------------
     {
-      id: "e_tea", kind: "esc", title: "茶水间（闸·舌）", x: COL.tea, row: 2, parents: ["n_door"],
+      id: "e_tea", kind: "esc", title: "茶水间（闸·舌）", x: COL.tea, row: 2, parents: ["n_door"], next: "n_round2",
       desc: "主题「半」。空间异常的茶水间，四个机关分三层悬叠（地面／半空／天花板），员工通道 4 位密码锁。",
       esc: {
         intro: [
@@ -265,7 +265,7 @@
 
     // ---------------- 机房线 ----------------
     {
-      id: "e_server", kind: "esc", title: "机房（闸·耳）", x: COL.server, row: 2, parents: ["n_door"],
+      id: "e_server", kind: "esc", title: "机房（闸·耳）", x: COL.server, row: 2, parents: ["n_door"], next: "n_round2",
       desc: "主题「静」。机器的声音被吃掉了，四个机关，员工通道 4 位密码锁。环形走廊布局，绕一圈回到入口。",
       esc: {
         intro: [
@@ -445,7 +445,7 @@
 
     // ---------------- 黑暗房线 ----------------
     {
-      id: "e_dark", kind: "esc", title: "黑暗房（闸·眼）", x: COL.dark, row: 2, parents: ["n_door"],
+      id: "e_dark", kind: "esc", title: "黑暗房（闸·眼）", x: COL.dark, row: 2, parents: ["n_door"], next: "n_round2",
       desc: "主题「黑」。主角失明，靠搀扶、触摸、听觉和口述解谜，4 位密码锁。十字错乱布局，门位不与枢纽直接相邻。",
       esc: {
         intro: [
@@ -669,11 +669,27 @@
     // ---------------- 之后的流程：占位 ----------------
     {
       id: "n_round2", kind: "novel", title: "第二轮 · 选房", x: 450, row: 6,
-      parents: ["x_tea_bad", "x_tea_half", "x_server", "x_dark_bad", "x_dark_ok"], tbd: true,
+      parents: ["x_tea_bad", "x_tea_half", "x_server", "x_dark_bad", "x_dark_ok"],
       desc: "第二轮：档案室 / 镜像走廊 / 医务室（门牌 ×4，每扇门 5 人中只有 1 人正常）。",
+      script: [
+        N("[走廊尽头，那面原本空白的墙上，又亮起了一块屏幕。]"),
+        S("系统机械音", "第一轮，已完成。"),
+        S("系统机械音", "幸存者，十四人。"),
+        N("~屏幕上的剪影少了两个。没有人说话——谁都知道少的意味着什么。"),
+        S("系统机械音", "第二轮，开始选房。"),
+        S("系统机械音", "这一次的押金，是四份。"),
+        S("系统机械音", "每扇门里的五个人，只有一个人，还完整。"),
+        K("橘鏡", "四份……？一扇门五个，只留一个正常人。"),
+        K("橘鏡", "这不是让人解谜。这是让人在里面，互相认不出来。"),
+        N("[三扇门并列：档案室（闸·忆）、镜像走廊（闸·向）、医务室（闸·时）。]"),
+        N("[门牌上，四道押金的刻痕，都已经填满。]"),
+        K("橘鏡", "……那我该进哪一扇。"),
+        N("（第二轮的三间房可从流程图进入；本次将先进入档案室（闸·忆）。）"),
+      ],
+      next: "e_archive",
     },
     {
-      id: "e_archive", kind: "esc", title: "档案室（闸·忆）", x: COL.tea, row: 7, parents: ["n_round2"],
+      id: "e_archive", kind: "esc", title: "档案室（闸·忆）", x: COL.tea, row: 7, parents: ["n_round2"], next: "n_meet",
       desc: "主题「忆」。核心诡计：集体失忆（律、蓝同处一室却互认不出）。四象限枢纽布局，四个机关，员工通道 4 位密码锁。",
       esc: {
         intro: [
@@ -889,7 +905,7 @@
       desc: "留意默契：埋下「律蓝本该相认」的伏笔，留待第三轮会合时回收。",
     },
     {
-      id: "e_mirror", kind: "esc", title: "镜像走廊（闸·向）", x: COL.server, row: 7, parents: ["n_round2"],
+      id: "e_mirror", kind: "esc", title: "镜像走廊（闸·向）", x: COL.server, row: 7, parents: ["n_round2"], next: "n_meet",
       desc: "主题「反」。核心诡计：方向错乱（構、綴、澪、啓方向全反，翔是唯一方向参照物）。镜中对称长廊布局，四个机关，员工通道 4 位密码锁。",
       esc: {
         intro: [
@@ -1056,7 +1072,7 @@
       desc: "凭直觉／让方向错乱者带路：短暂迷失撞入镜中死路，啓侥幸无事，为第三轮生死埋下伏笔。",
     },
     {
-      id: "e_clinic", kind: "esc", title: "医务室（闸·时）", x: COL.dark, row: 7, parents: ["n_round2"],
+      id: "e_clinic", kind: "esc", title: "医务室（闸·时）", x: COL.dark, row: 7, parents: ["n_round2"], next: "n_meet",
       desc: "主题「时」。核心诡计：时间错乱（花咲、零、鈴、光全部时间感错乱，安澄是唯一时间基准）。双通道对照布局，四个机关，员工通道 4 位密码锁。",
       esc: {
         intro: [
@@ -1226,8 +1242,37 @@
     },
     {
       id: "n_meet", kind: "novel", title: "第三轮 · 会合", x: 450, row: 10,
-      parents: ["x_archive_break", "x_archive_bond", "x_mirror_safe", "x_mirror_risk", "x_clinic_safe", "x_clinic_risk"], tbd: true,
+      parents: ["x_archive_break", "x_archive_bond", "x_mirror_safe", "x_mirror_risk", "x_clinic_safe", "x_clinic_risk"],
       desc: "幸存者第一次面对面，抵押物归还，律、蓝想起彼此，主角有机会被认出。",
+      script: [
+        N("[最后一扇门滑开的时候，走廊尽头那盏一直没亮的灯，忽然亮了。]"),
+        N("[十几个人挤在同一个大厅里，第一次看清彼此的脸。没有人先开口——因为所有人都还在习惯「能看见」这件事。]"),
+        S("花咲樂", "……诶？你的头发，原来是这个颜色吗。"),
+        S("コード零", "别看我。我脸上有东西吗。"),
+        N("~有人在笑，笑声很短，像是怕把什么惊醒。"),
+        N("[抵押的东西，正在一点一点回来。舌头、耳朵、眼睛、时间、方向——还有记忆。]"),
+        N("~氷川律站在人群边缘，手一直按在太阳穴上，眉头越皱越紧。"),
+        S("氷川律", "……等一下。我记得，我好像，忘了什么很重要的东西。"),
+        N("~水無瀬藍从另一边抬头，两个人的视线在半空中撞上。"),
+        S("水無瀬藍", "……你刚才说什么？"),
+        S("氷川律", "我说我忘了什么。可我看着你——我看着你，我想不起来你是谁，但我认识你。"),
+        S("水無瀬藍", "……你他妈。"),
+        S("水無瀬藍", "我们在档案室里吵了一整轮。我居然，没认出是你。"),
+        N("~蓝的手抬到一半，停在半空，像是不知道该放哪儿。"),
+        S("氷川律", "是我先站那儿的。"),
+        S("水無瀬藍", "……是你先站那儿的。"),
+        N("[两个人同时笑了。那种笑法，只有认识很久的人才会用。]"),
+        N("~橘鏡站在两步之外。两个人的视线，同时转过来。]"),
+        S("氷川律", "橘鏡。"),
+        S("水無瀬藍", "……你一直都在啊。"),
+        K("橘鏡", "我在。"),
+        K("橘鏡", "我一直都在。我什么都记着。"),
+        N("[这一句话，说出口只用了两秒。可它在这栋楼里，等了两轮。]"),
+        N("[大厅尽头，最后两扇门，" +
+          "并排立在那里。门牌上刻着：闸 · 时／闸 · 忆。]"),
+        K("橘鏡", "……该走了。"),
+      ],
+      next: "n_final",
     },
     {
       id: "n_final", kind: "esc", title: "最终闸", x: 450, row: 11, parents: ["n_meet"], tbd: true,
@@ -1578,7 +1623,15 @@
   }
   dlgEl.addEventListener("click", () => {
     if (np.waiting) npNext();
-    else if (np.mode === "finish") backToFlow();
+    else if (np.mode === "finish") {
+      const n = np.node;
+      if (n && n.next && BYID[n.next]) {
+        np.mode = "idle";
+        enterNode(n.next);
+      } else {
+        backToFlow();
+      }
+    }
   });
 
   function backToFlow() {
@@ -1609,7 +1662,7 @@
     np.doorSeen = false;
     np.curView = n.esc && n.esc.views ? (n.esc.defaultView || Object.keys(n.esc.views)[0]) : null;
     $("node-name").textContent = n.title;
-    $("node-badge").textContent = n.tbd ? "占位节点" : "占位测试关";
+    $("node-badge").textContent = n.esc ? "逃脱房间" : "剧情节点";
     $("btn-node-hint").style.display = n.esc ? "inline-block" : "none";
     $("node-hotspots").innerHTML = "";
     $("node-choices").innerHTML = "";
@@ -1655,9 +1708,17 @@
     np.mode = "finish";
     ndSpeaker.textContent = "";
     ndText.className = "narration";
-    ndText.textContent = "（该节点已到达。点击此处，返回流程图。）";
-    ndNext.style.display = "block";
-    ndNext.textContent = "▼ 返回流程图";
+    const n = np.node;
+    if (n && n.next) {
+      const nt = BYID[n.next];
+      ndText.textContent = "（这间房已经走完。点击此处，进入「" + (nt ? nt.title : "下一环节") + "」。）";
+      ndNext.style.display = "block";
+      ndNext.textContent = "▼ 继续前进";
+    } else {
+      ndText.textContent = "（该节点已到达。点击此处，返回流程图。）";
+      ndNext.style.display = "block";
+      ndNext.textContent = "▼ 返回流程图";
+    }
     setHotspotsEnabled(false);
   }
 
