@@ -1,0 +1,9 @@
+{
+  "name": "b7-after-eyes-close",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline three.js diorama for gate 3: 闭眼之后 / V3 十字错乱",
+  "scripts": { "build": "python build.py" },
+  "dependencies": { "three": "0.170.0" },
+  "devDependencies": { "esbuild": "0.24.2" }
+}

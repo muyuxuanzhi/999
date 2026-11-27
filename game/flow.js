@@ -1582,6 +1582,7 @@
     $("node-hotspots").style.pointerEvents = on ? "auto" : "none";
     $("node-hotspots").inert = !on;
     window.Gate2Room?.setInteractive(on);
+    window.Gate3Room?.setInteractive(on);
   }
   function setFree(text) {
     ndSpeaker.textContent = "";
@@ -1673,6 +1674,7 @@
     drawStageBackdrop(n);
     G().showScreen("node");
     window.Gate2Room?.setRoom(n.id, np.curView);
+    window.Gate3Room?.setRoom(n.id, np.curView);
 
     if (n.esc) {
       npPlay(n.esc.intro, () => showEscStage(n));
@@ -1798,6 +1800,7 @@
         ? makeNpcMarker(item, () => onMech(item, item.id))
         : makeHotspot(item.label, item.rect, item.color, () => onMech(item, item.id));
       if (n.id === "e_server") window.Gate2Room?.bind(marker, item.id);
+      if (n.id === "e_dark") window.Gate3Room?.bind(marker, item.id);
       hs.appendChild(marker);
     });
 
@@ -1805,9 +1808,11 @@
       const door = makeHotspot(v.door.label, v.door.rect, "#3b2a1a", () => onDoor(n));
       door.classList.add("np-door");
       if (n.id === "e_server") window.Gate2Room?.bind(door, "door");
+      if (n.id === "e_dark") window.Gate3Room?.bind(door, "door");
       hs.appendChild(door);
     }
     if (n.id === "e_server") window.Gate2Room?.setView(np.curView);
+    if (n.id === "e_dark") window.Gate3Room?.setView(np.curView);
 
     (esc.nav && esc.nav[np.curView] || []).forEach((navItem) => {
       const btn = document.createElement("div");

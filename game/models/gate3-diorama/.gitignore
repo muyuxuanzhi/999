@@ -1,0 +1,4 @@
+vendor/
+tools/
+scene.bundle.js
+__pycache__/
