@@ -1,0 +1,9 @@
+{
+  "name": "b7-between-half-cups",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline three.js gate 1 pantry diorama with three investigation cameras",
+  "scripts": { "build": "python build.py" },
+  "dependencies": { "three": "0.170.0" },
+  "devDependencies": { "esbuild": "0.24.2" }
+}
