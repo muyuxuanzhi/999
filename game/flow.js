@@ -1580,6 +1580,8 @@
 
   function setHotspotsEnabled(on) {
     $("node-hotspots").style.pointerEvents = on ? "auto" : "none";
+    $("node-hotspots").inert = !on;
+    window.Gate2Room?.setInteractive(on);
   }
   function setFree(text) {
     ndSpeaker.textContent = "";
@@ -1670,6 +1672,7 @@
     $("node-lock").style.display = "none";
     drawStageBackdrop(n);
     G().showScreen("node");
+    window.Gate2Room?.setRoom(n.id, np.curView);
 
     if (n.esc) {
       npPlay(n.esc.intro, () => showEscStage(n));
@@ -1791,18 +1794,20 @@
     hs.appendChild(label);
 
     (v.items || []).forEach((item) => {
-      if (item.type === "npc") {
-        hs.appendChild(makeNpcMarker(item, () => onMech(item, item.id)));
-      } else {
-        hs.appendChild(makeHotspot(item.label, item.rect, item.color, () => onMech(item, item.id)));
-      }
+      const marker = item.type === "npc"
+        ? makeNpcMarker(item, () => onMech(item, item.id))
+        : makeHotspot(item.label, item.rect, item.color, () => onMech(item, item.id));
+      if (n.id === "e_server") window.Gate2Room?.bind(marker, item.id);
+      hs.appendChild(marker);
     });
 
     if (v.door) {
       const door = makeHotspot(v.door.label, v.door.rect, "#3b2a1a", () => onDoor(n));
       door.classList.add("np-door");
+      if (n.id === "e_server") window.Gate2Room?.bind(door, "door");
       hs.appendChild(door);
     }
+    if (n.id === "e_server") window.Gate2Room?.setView(np.curView);
 
     (esc.nav && esc.nav[np.curView] || []).forEach((navItem) => {
       const btn = document.createElement("div");
@@ -1860,7 +1865,10 @@
 
   function onMech(m, key) {
     np.seen[key] = true;
-    npPlay(m.lines, () => setFree(FREE_ROAM_HINT));
+    npPlay(m.lines, () => {
+      setHotspotsEnabled(true);
+      setFree(FREE_ROAM_HINT);
+    });
   }
 
   function onDoor(n) {

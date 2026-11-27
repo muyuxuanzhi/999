@@ -1,0 +1,9 @@
+{
+  "name": "b7-silent-metal-forest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline three.js diorama for gate 2 of 怪谈降临也要上班",
+  "scripts": { "build": "python build.py" },
+  "dependencies": { "three": "0.170.0" },
+  "devDependencies": { "esbuild": "0.24.2" }
+}
